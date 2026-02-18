@@ -1,0 +1,64 @@
+.dashboard-header {
+  text-align: center;
+  padding: 30px;
+  background-color: #f8f9fa;
+  border-bottom: 2px solid #e0e0e0;
+}
+
+h1 { color: #1565c0; margin: 0; }
+.success-msg { color: #2e7d32; font-weight: bold; font-size: 18px; }
+
+.carpetas-grid {
+  display: flex;
+  gap: 20px;
+  padding: 40px;
+  justify-content: center;
+  flex-wrap: wrap; /* Para que bajen de línea si hay muchas */
+}
+
+.carpeta-card {
+  background: white;
+  border: 1px solid #ccc;
+  border-radius: 10px;
+  padding: 20px;
+  width: 250px;
+  box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+  transition: transform 0.2s;
+}
+
+.carpeta-card:hover {
+  transform: translateY(-5px); /* Efecto de saltito al pasar el ratón */
+  border-color: #1565c0;
+}
+
+.carpeta-card h3 { margin-top: 0; color: #333; }
+.ruta-texto { font-size: 12px; color: #777; }
+
+.btn-abrir {
+  width: 100%;
+  padding: 10px;
+  background-color: #1565c0;
+  color: white;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  font-weight: bold;
+}
+
+.btn-abrir:hover { background-color: #0d47a1; }
+
+.btn-logout {
+  background-color: #d32f2f; /* Rojo alerta */
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 6px;
+  font-weight: bold;
+  cursor: pointer;
+  margin-top: 15px;
+  transition: background-color 0.3s;
+}
+
+.btn-logout:hover {
+  background-color: #b71c1c; /* Rojo más oscuro al pasar el ratón */
+}

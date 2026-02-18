@@ -1,0 +1,22 @@
+@if (!sesionIniciada) {
+  <div class="login-container">
+    <div class="login-box">
+      <h1>🏥 MediCloud</h1>
+      <h2>Portal del Empleado</h2>
+
+      <div class="input-group">
+        <label>Usuario</label>
+        <input type="text" placeholder="Ej: lucía" [(ngModel)]="usuario">
+      </div>
+
+      <div class="input-group">
+        <label>Contraseña</label>
+        <input type="password" placeholder="••••••" [(ngModel)]="password">
+      </div>
+
+      <button (click)="iniciarSesion()">Entrar a la Bóveda</button>
+    </div>
+  </div>
+} @else {
+  <app-dashboard></app-dashboard>
+}

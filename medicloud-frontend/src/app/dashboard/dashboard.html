@@ -1,0 +1,20 @@
+<div class="dashboard-header">
+  <h1>🏦 Bóveda Segura de MediCloud</h1>
+  <p class="success-msg">{{ mensajeServidor }}</p>
+  <button class="btn-logout" (click)="cerrarSesion()">🚪 Cerrar Sesión</button>
+</div>
+
+<div class="carpetas-grid">
+  
+  @for (carpeta of carpetas; track carpeta.id_carpeta) {
+    <div class="carpeta-card">
+      <h3>📁 {{ carpeta.nombre_carpeta }}</h3>
+      <p><strong>Cliente:</strong> {{ carpeta.cliente }}</p>
+      <p class="ruta-texto">Ruta: {{ carpeta.ruta }}</p>
+      <button class="btn-abrir" (click)="abrirCarpeta(carpeta.ruta)"> Abrir Carpeta</button>
+    </div>
+  } @empty {
+    <p>Cargando archivos clasificados...</p>
+  }
+
+</div>
