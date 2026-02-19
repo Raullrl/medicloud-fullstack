@@ -26,13 +26,24 @@ export class DashboardComponent implements OnInit {
     const headers = new HttpHeaders().set('Authorization', `Bearer ${token}`);
 
     this.http.get('https://medicloud-backend-tuug.onrender.com/api/carpetas', { headers }).subscribe({
-      next: (data: any) => {
-        // ✨ AQUÍ ESTÁ LA CORRECCIÓN MÁGICA
-        // data ya es la lista directa que viene de tu base de datos Aiven
-        this.carpetas = data;
+      next: (respuesta: any) => {
+        console.log("🕵️‍♂️ DATOS RECIBIDOS DEL BACKEND:", respuesta);
+        
+        // ✨ EL CÓDIGO ATRAPA-TODO: 
+        // Angular buscará la lista de carpetas en todas las formas posibles
+        if (Array.isArray(respuesta)) {
+          this.carpetas = respuesta; // Si es una lista directa
+        } else if (respuesta && Array.isArray(respuesta.carpetas)) {
+          this.carpetas = respuesta.carpetas; // Si viene dentro de la variable 'carpetas'
+        } else if (respuesta && Array.isArray(respuesta.data)) {
+          this.carpetas = respuesta.data; // Si el backend usa 'data'
+        } else {
+          console.warn("⚠️ Los datos llegaron, pero no parecen una lista:", respuesta);
+          this.carpetas = []; 
+        }
       },
       error: (err) => {
-        console.error("Error al obtener carpetas:", err);
+        console.error("❌ Error al obtener carpetas:", err);
       }
     });
   }
