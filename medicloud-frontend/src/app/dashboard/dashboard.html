@@ -1,20 +1,64 @@
 <div class="dashboard-header">
   <h1>🏦 Bóveda Segura de MediCloud</h1>
-  <p class="success-msg">{{ mensajeServidor }}</p>
-  <button class="btn-logout" (click)="cerrarSesion()">🚪 Cerrar Sesión</button>
-</div>
-
-<div class="carpetas-grid">
+  <p class="success-msg">Hola, {{ nombreUsuario | titlecase }} | {{ mensajeServidor }}</p>
   
-  @for (carpeta of carpetas; track $index) {
-    <div class="carpeta-card">
-      <h3>📁 {{ carpeta.nombre_carpeta || 'Carpeta de Paciente' }}</h3>
-      <p><strong>Cliente:</strong> {{ carpeta.cliente || 'No especificado' }}</p>
-      <p class="ruta-texto">Ruta: {{ carpeta.ruta }}</p>
-      <button class="btn-abrir" (click)="abrirCarpeta(carpeta.ruta)"> Abrir Carpeta</button>
-    </div>
-  } @empty {
-    <p>Cargando archivos clasificados...</p>
-  }
-
+  <div style="display: flex; gap: 10px; margin-top: 10px;">
+    @if (esAdmin) {
+      @if (vistaActual === 'boveda') {
+        <button style="background-color: #d9534f; color: white; padding: 10px; border: none; border-radius: 5px; cursor: pointer;" (click)="cambiarVista('admin')">⚙️ Panel de Administración</button>
+      } @else {
+        <button style="background-color: #5bc0de; color: white; padding: 10px; border: none; border-radius: 5px; cursor: pointer;" (click)="cambiarVista('boveda')">📁 Volver a Bóveda</button>
+      }
+    }
+    <button class="btn-logout" (click)="cerrarSesion()">🚪 Cerrar Sesión</button>
+  </div>
 </div>
+
+@if (vistaActual === 'boveda') {
+  <div class="carpetas-grid">
+    @for (carpeta of carpetas; track $index) {
+      <div class="carpeta-card">
+        <h3>📁 {{ carpeta.nombre_carpeta || 'Carpeta de Paciente' }}</h3>
+        <p><strong>Cliente:</strong> {{ carpeta.cliente || 'No especificado' }}</p>
+        <p class="ruta-texto">Ruta: {{ carpeta.ruta }}</p>
+        <button class="btn-abrir" (click)="abrirCarpeta(carpeta.ruta)"> Abrir Carpeta</button>
+      </div>
+    } @empty {
+      <p>Cargando archivos clasificados...</p>
+    }
+  </div>
+} 
+
+@else {
+  <div class="admin-panel" style="background: white; padding: 20px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); margin-top: 20px;">
+    <h2>👥 Gestión de Empleados (Control de Accesos)</h2>
+    <p>Solo los usuarios con Rol de Administrador pueden ver esta pantalla.</p>
+
+    <table style="width: 100%; border-collapse: collapse; margin-top: 15px;">
+      <thead>
+        <tr style="background-color: #f4f4f4; text-align: left;">
+          <th style="padding: 10px; border-bottom: 2px solid #ddd;">ID</th>
+          <th style="padding: 10px; border-bottom: 2px solid #ddd;">Usuario</th>
+          <th style="padding: 10px; border-bottom: 2px solid #ddd;">Rol</th>
+          <th style="padding: 10px; border-bottom: 2px solid #ddd;">Estado</th>
+        </tr>
+      </thead>
+      <tbody>
+        @for (usuario of listaUsuarios; track usuario.id_usuario) {
+          <tr>
+            <td style="padding: 10px; border-bottom: 1px solid #eee;">{{ usuario.id_usuario }}</td>
+            <td style="padding: 10px; border-bottom: 1px solid #eee;"><strong>{{ usuario.nombre_usuario }}</strong></td>
+            <td style="padding: 10px; border-bottom: 1px solid #eee;">
+              <span [style.color]="usuario.id_rol === 1 ? 'red' : 'black'">{{ usuario.id_rol === 1 ? 'Admin' : 'Empleado' }}</span>
+            </td>
+            <td style="padding: 10px; border-bottom: 1px solid #eee;">
+              <span [style.color]="usuario.estado === 'Bloqueado' ? 'red' : 'green'">{{ usuario.estado || 'Activo' }}</span>
+            </td>
+          </tr>
+        } @empty {
+          <tr><td colspan="4" style="text-align: center; padding: 20px;">Cargando empleados...</td></tr>
+        }
+      </tbody>
+    </table>
+  </div>
+}
