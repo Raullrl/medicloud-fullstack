@@ -4,37 +4,33 @@ const cors = require('cors');
 const mysql = require('mysql2');
 const bcrypt = require('bcryptjs'); 
 const jwt = require('jsonwebtoken'); 
-// 🛡️ 1. Importamos nuestras nuevas armas de seguridad
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
 
 const app = express();
 
-// 🛡️ 1. VITAL PARA RENDER: Le decimos que estamos detrás de un proxy 
-// para que el Rate Limit lea tu IP real y no la de Render.
+// 🛡️ Configuración para Render (Proxy)
 app.set('trust proxy', 1);
 
-// 🛡️ 2. HELMET AJUSTADO: Lo activamos, pero le decimos que permita 
-// recibir peticiones de otros orígenes (tu Vercel).
+// 🛡️ Seguridad de cabeceras
 app.use(helmet({
   crossOriginResourcePolicy: false,
 }));
 
 // --- CONFIGURACIÓN DE SEGURIDAD (CORS) ---
 app.use(cors({
-  origin: '*', // En un entorno 100% estricto aquí iría tu URL de Vercel
+  origin: '*', 
   methods: ['GET', 'POST', 'PUT', 'DELETE'],
   allowedHeaders: ['Content-Type', 'Authorization']
 }));
 
 app.use(express.json());
 
-// 🛡️ 3. LIMITADOR DE VELOCIDAD (Fuerza Bruta)
-// Creamos una regla: Máximo 5 intentos de login por IP cada 15 minutos
+// 🛡️ Limitador de Fuerza Bruta
 const loginLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutos de ventana
-  max: 5, // Límite de 5 peticiones por IP
-  message: { error: '⛔ Demasiados intentos fallidos. Tu IP ha sido bloqueada temporalmente. Inténtalo en 15 minutos.' }
+  windowMs: 15 * 60 * 1000, 
+  max: 5, 
+  message: { error: '⛔ Demasiados intentos fallidos. Tu IP ha sido bloqueada temporalmente.' }
 });
 
 // --- CONFIGURACIÓN DE LA BASE DE DATOS (AIVEN) ---
@@ -52,71 +48,68 @@ const db = mysql.createPool({
   }
 });
 
-console.log("📡 Intentando configurar el pool de conexiones a Aiven...");
+console.log("📡 Backend conectado a la base de datos de Aiven...");
 
-// --- RUTA DE ESTADO (Para probar conexión) ---
+// --- RUTA DE ESTADO ---
 app.get('/api/estado', (req, res) => {
-  db.query('SELECT nombre, apellidos FROM empleado LIMIT 3', (err, results) => {
-    if (err) {
-      console.error('❌ Error en /api/estado:', err);
-      return res.status(500).json({ error: 'Error conectando a Aiven' });
-    }
-    res.json({ mensaje: '✅ ¡Conexión exitosa a la nube de Aiven!', empleados: results });
+  db.query('SELECT 1', (err) => {
+    if (err) return res.status(500).json({ error: 'Error de conexión' });
+    res.json({ mensaje: '✅ Servidor y Base de Datos activos' });
   });
 });
 
-// --- RUTA DE LOGIN ---
-// 🛡️ 4. Aplicamos el limitador SOLO a la ruta de login
+// --- RUTA DE LOGIN (ACTUALIZADA: BUSQUEDA POR EMAIL) ---
 app.post('/api/login', loginLimiter, async (req, res) => {
-  const { usuario, password } = req.body;
+  const { usuario, password } = req.body; // 'usuario' ahora recibirá el email
   
-  console.log(`📩 Intento de login recibido. Usuario: ${usuario}`);
-
   if (!usuario || !password) {
     return res.status(400).json({ error: 'Faltan credenciales' });
   }
 
-  // ✨ SQL CORREGIDO: Buscamos el usuario y unimos con usuario_rol para obtener su id_rol
+  // ✨ SQL: Buscamos por la nueva columna EMAIL
   const queryLogin = `
     SELECT u.*, ur.id_rol 
     FROM usuario u
     LEFT JOIN usuario_rol ur ON u.id_usuario = ur.id_usuario
-    WHERE u.nombre_usuario = ?
+    WHERE u.email = ?
   `;
 
   db.query(queryLogin, [usuario], async (err, results) => {
     if (err) {
-      console.error('❌ Error de Base de Datos en Login:', err);
+      console.error('❌ Error en Login:', err);
       return res.status(500).json({ error: 'Error en el servidor' });
     }
 
     if (results.length === 0) {
-      console.log(`⚠️ Usuario no encontrado: ${usuario}`);
-      return res.status(401).json({ error: 'Usuario o contraseña incorrectos' });
+      return res.status(401).json({ error: 'Email o contraseña incorrectos' });
     }
 
     const userDB = results[0];
 
     if (userDB.estado === 'Bloqueado') {
-      return res.status(403).json({ error: 'Tu cuenta ha sido bloqueada por seguridad.' });
+      return res.status(403).json({ error: 'Tu cuenta ha sido bloqueada.' });
     }
 
     const passwordValida = await bcrypt.compare(password, userDB.hash_contraseña);
     if (!passwordValida) {
-      console.log(`❌ Contraseña incorrecta para: ${usuario}`);
-      return res.status(401).json({ error: 'Usuario o contraseña incorrectos' });
+      return res.status(401).json({ error: 'Email o contraseña incorrectos' });
     }
 
-    // Creación del Token JWT usando el id_rol obtenido del JOIN
+    // ✨ TOKEN: Ahora incluimos el EMAIL para poder filtrar por dominio después
     const token = jwt.sign(
-      { id: userDB.id_usuario, rol: userDB.id_rol, nombre: userDB.nombre_usuario },
+      { 
+        id: userDB.id_usuario, 
+        rol: userDB.id_rol, 
+        nombre: userDB.nombre_usuario,
+        email: userDB.email 
+      },
       process.env.JWT_SECRET,
       { expiresIn: '2h' }
     );
 
-    console.log(`✅ Login exitoso: ${usuario} con rol ${userDB.id_rol}`);
+    console.log(`✅ Login exitoso: ${userDB.email} (Rol: ${userDB.id_rol})`);
     res.json({
-      mensaje: `¡Bienvenido a MediCloud, ${userDB.nombre_usuario}!`,
+      mensaje: `¡Bienvenido, ${userDB.nombre_usuario}!`,
       token: token
     });
   });
@@ -127,27 +120,26 @@ const verificarToken = (req, res, next) => {
   const cabeceraAuth = req.headers['authorization'];
   const token = cabeceraAuth && cabeceraAuth.split(' ')[1];
 
-  if (!token) {
-    console.log("⛔ Intento de acceso sin token");
-    return res.status(401).json({ error: '⛔ Acceso denegado. Necesitas iniciar sesión.' });
-  }
+  if (!token) return res.status(401).json({ error: 'Acceso denegado' });
 
   jwt.verify(token, process.env.JWT_SECRET, (err, usuarioDecodificado) => {
-    if (err) {
-      console.error("⛔ Token inválido o caducado");
-      return res.status(403).json({ error: '⛔ Token inválido o caducado.' });
-    }
-
+    if (err) return res.status(403).json({ error: 'Token inválido' });
     req.usuario = usuarioDecodificado;
     next();
   });
 };
 
-// --- RUTA PROTEGIDA: CARPETAS ---
+// --- RUTA PROTEGIDA: CARPETAS (CON FILTRADO POR DOMINIO) ---
 app.get('/api/carpetas', verificarToken, (req, res) => {
-  console.log(`📂 Usuario ${req.usuario.nombre} solicitando carpetas...`);
   
-  const querySQL = `
+  // ✨ LÓGICA DE AISLAMIENTO: Extraemos el dominio del email
+  // Ejemplo: 'pablo@clinicadental.es' -> dominio: 'clinicadental'
+  const email = req.usuario.email || '';
+  const dominio = email.split('@')[1]?.split('.')[0] || '';
+  
+  console.log(`📂 Usuario ${req.usuario.nombre} solicita carpetas para el dominio: ${dominio}`);
+
+  let querySQL = `
     SELECT 
       c.id_carpeta, 
       c.nombre AS nombre_carpeta, 
@@ -157,60 +149,51 @@ app.get('/api/carpetas', verificarToken, (req, res) => {
     JOIN cliente cl ON c.id_cliente = cl.id_cliente
   `;
 
-  db.query(querySQL, (err, results) => {
-    if (err) {
-      console.error('❌ Error al buscar carpetas:', err);
-      return res.status(500).json({ error: 'Error del servidor al leer la bóveda' });
-    }
-
-    res.json({
-      mensaje: "✅ ¡Bóveda Segura de MediCloud conectada!",
-      tu_identidad: req.usuario,
-      carpetas: results
+  // 🛡️ REGLA DE SEGURIDAD:
+  // Si el usuario NO es SysAdmin (Rol 3), filtramos para que solo vea su dominio.
+  if (req.usuario.rol !== 3) {
+    querySQL += ` WHERE cl.nombre_empresa LIKE ?`;
+    
+    db.query(querySQL, [`%${dominio}%`], (err, results) => {
+      if (err) return res.status(500).json({ error: 'Error al filtrar bóveda' });
+      res.json({ mensaje: "Bóveda filtrada por dominio", carpetas: results });
     });
-  });
+  } else {
+    // Si es SysAdmin, puede verlo TODO (Auditoría total)
+    db.query(querySQL, (err, results) => {
+      if (err) return res.status(500).json({ error: 'Error al leer bóveda' });
+      res.json({ mensaje: "Acceso total de administrador", carpetas: results });
+    });
+  }
 });
 
-// ✨ --- RUTA PROTEGIDA: PANEL DE ADMINISTRADOR (NUEVA Y CORREGIDA) --- ✨
+// ✨ --- RUTA PROTEGIDA: PANEL DE ADMINISTRADOR --- ✨
 app.get('/api/admin/usuarios', verificarToken, (req, res) => {
-  console.log(`🛡️ Usuario ${req.usuario.nombre} (Rol: ${req.usuario.rol}) intentando entrar al Panel Admin...`);
-  
-  // VERIFICACIÓN DE ROL: Solo dejamos pasar al SysAdmin (Rol 3) o Gerencia (Rol 1)
   if (req.usuario.rol !== 3 && req.usuario.rol !== 1) {
-    console.log("⛔ Bloqueado: No tiene privilegios de administrador.");
-    return res.status(403).json({ error: 'Acceso denegado. Se requiere nivel de Administrador.' });
+    return res.status(403).json({ error: 'Acceso denegado.' });
   }
 
-  // ✨ SQL CORREGIDO: Buscamos a todos los usuarios pasando por usuario_rol para llegar a rol
+  // ✨ Mostramos también el EMAIL en la tabla de gestión
   const querySQL = `
-    SELECT u.id_usuario, u.nombre_usuario, r.nombre_rol, u.estado 
+    SELECT u.id_usuario, u.nombre_usuario, u.email, r.nombre_rol, u.estado 
     FROM usuario u
     LEFT JOIN usuario_rol ur ON u.id_usuario = ur.id_usuario
     LEFT JOIN rol r ON ur.id_rol = r.id_rol
   `;
 
   db.query(querySQL, (err, results) => {
-    if (err) {
-      console.error('❌ Error al listar usuarios:', err);
-      return res.status(500).json({ error: 'Error del servidor al leer los usuarios' });
-    }
-
-    res.json({
-      mensaje: "✅ Lista de empleados obtenida con éxito",
-      usuarios: results
-    });
+    if (err) return res.status(500).json({ error: 'Error en la lista' });
+    res.json({ usuarios: results });
   });
 });
 
-// --- RUTA UTILIDAD: CREAR HASH (Solo para desarrollo) ---
 app.get('/api/crear-hash/:clave', async (req, res) => {
   const salt = await bcrypt.genSalt(10);
   const hash = await bcrypt.hash(req.params.clave, salt);
-  res.json({ clave_original: req.params.clave, hash_generado: hash });
+  res.json({ hash_generado: hash });
 });
 
-// --- INICIO DEL SERVIDOR ---
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
-  console.log(`🚀 Servidor backend ejecutándose en el puerto ${PORT}`);
+  console.log(`🚀 Servidor backend MediCloud ejecutándose en el puerto ${PORT}`);
 });
