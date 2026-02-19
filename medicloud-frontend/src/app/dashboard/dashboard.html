@@ -49,7 +49,9 @@
             <td style="padding: 10px; border-bottom: 1px solid #eee;">{{ usuario.id_usuario }}</td>
             <td style="padding: 10px; border-bottom: 1px solid #eee;"><strong>{{ usuario.nombre_usuario }}</strong></td>
             <td style="padding: 10px; border-bottom: 1px solid #eee;">
-              <span [style.color]="usuario.id_rol === 1 ? 'red' : 'black'">{{ usuario.id_rol === 1 ? 'Admin' : 'Empleado' }}</span>
+              <span [style.color]="usuario.nombre_rol === 'SysAdmin' || usuario.nombre_rol === 'Gerencia' ? 'red' : 'black'">
+                {{ usuario.nombre_rol }}
+              </span>
             </td>
             <td style="padding: 10px; border-bottom: 1px solid #eee;">
               <span [style.color]="usuario.estado === 'Bloqueado' ? 'red' : 'green'">{{ usuario.estado || 'Activo' }}</span>
