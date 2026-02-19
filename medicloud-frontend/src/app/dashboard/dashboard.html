@@ -39,6 +39,7 @@
         <tr style="background-color: #f4f4f4; text-align: left;">
           <th style="padding: 10px; border-bottom: 2px solid #ddd;">ID</th>
           <th style="padding: 10px; border-bottom: 2px solid #ddd;">Usuario</th>
+          <th style="padding: 10px; border-bottom: 2px solid #ddd;">Email Corporativo</th>
           <th style="padding: 10px; border-bottom: 2px solid #ddd;">Rol</th>
           <th style="padding: 10px; border-bottom: 2px solid #ddd;">Estado</th>
         </tr>
@@ -48,6 +49,7 @@
           <tr>
             <td style="padding: 10px; border-bottom: 1px solid #eee;">{{ usuario.id_usuario }}</td>
             <td style="padding: 10px; border-bottom: 1px solid #eee;"><strong>{{ usuario.nombre_usuario }}</strong></td>
+            <td style="padding: 10px; border-bottom: 1px solid #eee; color: #666;">{{ usuario.email }}</td>
             <td style="padding: 10px; border-bottom: 1px solid #eee;">
               <span [style.color]="usuario.nombre_rol === 'SysAdmin' || usuario.nombre_rol === 'Gerencia' ? 'red' : 'black'">
                 {{ usuario.nombre_rol }}
@@ -58,7 +60,7 @@
             </td>
           </tr>
         } @empty {
-          <tr><td colspan="4" style="text-align: center; padding: 20px;">Cargando empleados...</td></tr>
+          <tr><td colspan="5" style="text-align: center; padding: 20px;">Cargando empleados...</td></tr>
         }
       </tbody>
     </table>
