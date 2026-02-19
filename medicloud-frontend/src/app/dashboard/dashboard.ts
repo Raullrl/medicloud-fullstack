@@ -1,63 +1,58 @@
-import { Component, OnInit, ChangeDetectorRef } from '@angular/core'; // <-- Importamos el despertador
+import { Component, Output, EventEmitter, OnInit } from '@angular/core';
 import { HttpClient, HttpHeaders } from '@angular/common/http';
+import { CommonModule } from '@angular/common';
 
 @Component({
   selector: 'app-dashboard',
   standalone: true,
+  imports: [CommonModule],
   templateUrl: './dashboard.html',
   styleUrl: './dashboard.css'
 })
 export class DashboardComponent implements OnInit {
-  carpetas: any[] = []; 
-  mensajeServidor = '';
+  // El "altavoz" para avisar a app.ts
+  @Output() cerrarSesionEvento = new EventEmitter<void>();
+  
+  carpetas: any[] = [];
 
-  // 1. Inyectamos el "Despertador" (cdr) en el constructor
-  constructor(private http: HttpClient, private cdr: ChangeDetectorRef) {}
+  constructor(private http: HttpClient) {}
 
   ngOnInit() {
-    this.cargarCarpetas();
+    this.obtenerCarpetas();
   }
 
-  cargarCarpetas() {
+  obtenerCarpetas() {
     const token = localStorage.getItem('token_medicloud');
-    const cabecerasSeguras = new HttpHeaders().set('Authorization', `Bearer ${token}`);
+    const headers = new HttpHeaders().set('Authorization', `Bearer ${token}`);
 
-    this.http.get('https://medicloud-backend-tuug.onrender.com/api/carpetas', { headers: cabecerasSeguras }).subscribe({
-      next: (respuesta: any) => {
-        console.log('🕵️‍♂️ DATOS DEL SERVIDOR:', respuesta); 
-        
-        this.mensajeServidor = respuesta.mensaje;
-        this.carpetas = respuesta.carpetas; 
-
-        // 2. ⏰ ¡HACEMOS SONAR EL DESPERTADOR PARA QUE PINTE LA PANTALLA!
-        this.cdr.detectChanges(); 
+    // URL corregida con 'tuug'
+    this.http.get('https://medicloud-backend-tuug.onrender.com/api/carpetas', { headers }).subscribe({
+      next: (data: any) => {
+        this.carpetas = data;
       },
-      error: (error) => {
-        alert('⛔ Error al entrar a la bóveda: ' + error.message);
+      error: (err) => {
+        console.error("Error al obtener carpetas", err);
       }
     });
   }
-  // ... (aquí arriba está tu función cargarCarpetas) ...
 
   cerrarSesion() {
-    // 1. Destruimos el Pase VIP del bolsillo del navegador
+    // 1. Limpiamos el token por seguridad
     localStorage.removeItem('token_medicloud');
     
-    // 2. Recargamos la página para que el "Interruptor" vuelva a apagarse
-    window.location.reload();
+    // 2. Avisamos al componente padre
+    this.cerrarSesionEvento.emit();
+    
+    console.log("👋 Cerrando sesión...");
   }
-  // --- AÑADE ESTO AQUÍ ---
-  abrirCarpeta(ruta: string) {
-    console.log('🔗 Intentando abrir la ruta:', ruta);
 
-    if (ruta && ruta.startsWith('http')) {
-      // Abre el PDF de Supabase en una pestaña nueva
-      window.open(ruta, '_blank');
+  abrirCarpeta(url: string) {
+    if (url) {
+      window.open(url, '_blank');
     } else {
-      console.warn('⚠️ La ruta no es válida:', ruta);
-      alert('Esta carpeta no tiene un archivo digital asignado o la ruta es incorrecta.');
+      alert("No hay archivo disponible para esta carpeta.");
     }
   }
-} // <-- Esta es la última llave de tu archivo
+}
 
 
