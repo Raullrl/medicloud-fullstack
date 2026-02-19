@@ -24,7 +24,14 @@
         <button class="btn-abrir" (click)="abrirCarpeta(carpeta.ruta)"> Abrir Carpeta</button>
       </div>
     } @empty {
-      <p>Cargando archivos clasificados...</p>
+      <div style="grid-column: 1 / -1; text-align: center; padding: 50px; background-color: #f9f9f9; border: 2px dashed #ccc; border-radius: 15px; margin-top: 20px;">
+        <h2 style="color: #d9534f; margin-bottom: 15px;">🔒 Acceso Restringido por Política de Seguridad</h2>
+        <p style="color: #666; font-size: 1.1rem; line-height: 1.6; max-width: 700px; margin: 0 auto;">
+          Tu perfil de usuario en la matriz <strong>MediCloud</strong> no cuenta con privilegios de auditoría para visualizar expedientes médicos de clientes externos.
+          <br><br>
+          En cumplimiento con el <strong>RGPD</strong> y el <strong>Principio de Mínimo Privilegio</strong>, este acceso está reservado exclusivamente a los roles de <strong>Gerencia</strong> y <strong>Administración Técnica</strong>.
+        </p>
+      </div>
     }
   </div>
 } 
