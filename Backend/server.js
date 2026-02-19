@@ -7,10 +7,16 @@ const jwt = require('jsonwebtoken');
 
 const app = express();
 
+// --- CONFIGURACIÓN DE SEGURIDAD (CORS) ---
+app.use(cors({
+  origin: '*', // Permite peticiones desde cualquier origen (Vercel, local, etc.)
+  methods: ['GET', 'POST', 'PUT', 'DELETE'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+}));
 
-app.use(cors());
 app.use(express.json());
 
+// --- CONFIGURACIÓN DE LA BASE DE DATOS (AIVEN) ---
 const db = mysql.createPool({
   host: process.env.DB_HOST,
   user: process.env.DB_USER,
@@ -21,28 +27,41 @@ const db = mysql.createPool({
   connectionLimit: 10,
   queueLimit: 0,
   ssl: {
-      rejectUnauthorized: false
+      rejectUnauthorized: false // Necesario para conectar con Aiven desde la nube
   }
 });
 
+console.log("📡 Intentando configurar el pool de conexiones a Aiven...");
+
+// --- RUTA DE ESTADO (Para probar conexión) ---
 app.get('/api/estado', (req, res) => {
   db.query('SELECT nombre, apellidos FROM empleado LIMIT 3', (err, results) => {
-    if (err) return res.status(500).json({ error: 'Error conectando a Aiven' });
+    if (err) {
+      console.error('❌ Error en /api/estado:', err);
+      return res.status(500).json({ error: 'Error conectando a Aiven' });
+    }
     res.json({ mensaje: '✅ ¡Conexión exitosa a la nube de Aiven!', empleados: results });
   });
 });
 
+// --- RUTA DE LOGIN ---
 app.post('/api/login', async (req, res) => {
   const { usuario, password } = req.body;
+  
+  console.log(`📩 Intento de login recibido. Usuario: ${usuario}`);
 
   if (!usuario || !password) {
     return res.status(400).json({ error: 'Faltan credenciales' });
   }
 
   db.query('SELECT * FROM usuario WHERE nombre_usuario = ?', [usuario], async (err, results) => {
-    if (err) return res.status(500).json({ error: 'Error en el servidor' });
+    if (err) {
+      console.error('❌ Error de Base de Datos en Login:', err);
+      return res.status(500).json({ error: 'Error en el servidor' });
+    }
 
     if (results.length === 0) {
+      console.log(`⚠️ Usuario no encontrado: ${usuario}`);
       return res.status(401).json({ error: 'Usuario o contraseña incorrectos' });
     }
 
@@ -54,15 +73,18 @@ app.post('/api/login', async (req, res) => {
 
     const passwordValida = await bcrypt.compare(password, userDB.hash_contraseña);
     if (!passwordValida) {
+      console.log(`❌ Contraseña incorrecta para: ${usuario}`);
       return res.status(401).json({ error: 'Usuario o contraseña incorrectos' });
     }
 
+    // Creación del Token JWT
     const token = jwt.sign(
       { id: userDB.id_usuario, rol: userDB.id_rol, nombre: userDB.nombre_usuario },
       process.env.JWT_SECRET,
       { expiresIn: '2h' }
     );
 
+    console.log(`✅ Login exitoso: ${usuario}`);
     res.json({
       mensaje: `¡Bienvenido a MediCloud, ${userDB.nombre_usuario}!`,
       token: token
@@ -70,23 +92,31 @@ app.post('/api/login', async (req, res) => {
   });
 });
 
+// --- MIDDLEWARE DE VERIFICACIÓN DE TOKEN ---
 const verificarToken = (req, res, next) => {
   const cabeceraAuth = req.headers['authorization'];
   const token = cabeceraAuth && cabeceraAuth.split(' ')[1];
 
   if (!token) {
-    return res.status(401).json({ error: '⛔ Acceso denegado. Necesitas iniciar sesión (Falta Token).' });
+    console.log("⛔ Intento de acceso sin token");
+    return res.status(401).json({ error: '⛔ Acceso denegado. Necesitas iniciar sesión.' });
   }
 
   jwt.verify(token, process.env.JWT_SECRET, (err, usuarioDecodificado) => {
-    if (err) return res.status(403).json({ error: '⛔ Token inválido, caducado o manipulado.' });
+    if (err) {
+      console.error("⛔ Token inválido o caducado");
+      return res.status(403).json({ error: '⛔ Token inválido o caducado.' });
+    }
 
     req.usuario = usuarioDecodificado;
     next();
   });
 };
 
+// --- RUTA PROTEGIDA: CARPETAS ---
 app.get('/api/carpetas', verificarToken, (req, res) => {
+  console.log(`📂 Usuario ${req.usuario.nombre} solicitando carpetas...`);
+  
   const querySQL = `
     SELECT 
       c.id_carpeta, 
@@ -111,13 +141,15 @@ app.get('/api/carpetas', verificarToken, (req, res) => {
   });
 });
 
+// --- RUTA UTILIDAD: CREAR HASH (Solo para desarrollo) ---
 app.get('/api/crear-hash/:clave', async (req, res) => {
   const salt = await bcrypt.genSalt(10);
   const hash = await bcrypt.hash(req.params.clave, salt);
   res.json({ clave_original: req.params.clave, hash_generado: hash });
 });
 
+// --- INICIO DEL SERVIDOR ---
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
-  console.log(`🚀 Servidor backend ejecutándose en http://localhost:${PORT}`);
+  console.log(`🚀 Servidor backend ejecutándose en el puerto ${PORT}`);
 });
