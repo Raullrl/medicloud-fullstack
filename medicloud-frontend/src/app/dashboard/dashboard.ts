@@ -37,7 +37,7 @@ export class DashboardComponent implements OnInit {
         const payload = JSON.parse(atob(token.split('.')[1]));
         this.nombreUsuario = payload.nombre;
         // Asumimos que el rol 1 es el Administrador (ajústalo si en tu BD es otro número)
-        this.esAdmin = (payload.rol === 3); 
+        this.esAdmin = (payload.rol === 3 || payload.rol === 1); 
       } catch (e) {
         console.error("Error al leer el token", e);
       }
