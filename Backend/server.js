@@ -10,13 +10,19 @@ const rateLimit = require('express-rate-limit');
 
 const app = express();
 
-// 🛡️ 2. HELMET: Nuestro escudo de cabeceras de seguridad. 
-// LO PONEMOS ARRIBA DEL TODO. Oculta que usamos Express y nos defiende de XSS y Clickjacking.
-app.use(helmet());
+// 🛡️ 1. VITAL PARA RENDER: Le decimos que estamos detrás de un proxy 
+// para que el Rate Limit lea tu IP real y no la de Render.
+app.set('trust proxy', 1);
+
+// 🛡️ 2. HELMET AJUSTADO: Lo activamos, pero le decimos que permita 
+// recibir peticiones de otros orígenes (tu Vercel).
+app.use(helmet({
+  crossOriginResourcePolicy: false,
+}));
 
 // --- CONFIGURACIÓN DE SEGURIDAD (CORS) ---
 app.use(cors({
-  origin: '*', 
+  origin: '*', // En un entorno 100% estricto aquí iría tu URL de Vercel
   methods: ['GET', 'POST', 'PUT', 'DELETE'],
   allowedHeaders: ['Content-Type', 'Authorization']
 }));
