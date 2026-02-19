@@ -6,10 +6,10 @@
 
 <div class="carpetas-grid">
   
-  @for (carpeta of carpetas; track carpeta.id_carpeta) {
+  @for (carpeta of carpetas; track $index) {
     <div class="carpeta-card">
-      <h3>📁 {{ carpeta.nombre_carpeta }}</h3>
-      <p><strong>Cliente:</strong> {{ carpeta.cliente }}</p>
+      <h3>📁 {{ carpeta.nombre_carpeta || 'Carpeta de Paciente' }}</h3>
+      <p><strong>Cliente:</strong> {{ carpeta.cliente || 'No especificado' }}</p>
       <p class="ruta-texto">Ruta: {{ carpeta.ruta }}</p>
       <button class="btn-abrir" (click)="abrirCarpeta(carpeta.ruta)"> Abrir Carpeta</button>
     </div>

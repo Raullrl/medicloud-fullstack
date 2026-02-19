@@ -1,4 +1,4 @@
-import { Component, Output, EventEmitter, OnInit } from '@angular/core';
+import { Component, Output, EventEmitter, OnInit, ChangeDetectorRef } from '@angular/core';
 import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { CommonModule } from '@angular/common';
 
@@ -15,7 +15,8 @@ export class DashboardComponent implements OnInit {
   mensajeServidor = '¡Bóveda Segura de MediCloud conectada!';
   carpetas: any[] = [];
 
-  constructor(private http: HttpClient) {}
+  // ✨ AÑADIMOS EL 'cdr' PARA DESPERTAR A ANGULAR
+  constructor(private http: HttpClient, private cdr: ChangeDetectorRef) {}
 
   ngOnInit() {
     this.obtenerCarpetas();
@@ -27,20 +28,15 @@ export class DashboardComponent implements OnInit {
 
     this.http.get('https://medicloud-backend-tuug.onrender.com/api/carpetas', { headers }).subscribe({
       next: (respuesta: any) => {
-        console.log("🕵️‍♂️ DATOS RECIBIDOS DEL BACKEND:", respuesta);
-        
-        // ✨ EL CÓDIGO ATRAPA-TODO: 
-        // Angular buscará la lista de carpetas en todas las formas posibles
-        if (Array.isArray(respuesta)) {
-          this.carpetas = respuesta; // Si es una lista directa
-        } else if (respuesta && Array.isArray(respuesta.carpetas)) {
-          this.carpetas = respuesta.carpetas; // Si viene dentro de la variable 'carpetas'
-        } else if (respuesta && Array.isArray(respuesta.data)) {
-          this.carpetas = respuesta.data; // Si el backend usa 'data'
-        } else {
-          console.warn("⚠️ Los datos llegaron, pero no parecen una lista:", respuesta);
-          this.carpetas = []; 
+        // Guardamos los datos
+        if (respuesta && respuesta.carpetas) {
+          this.carpetas = respuesta.carpetas;
+        } else if (Array.isArray(respuesta)) {
+          this.carpetas = respuesta;
         }
+
+        // 🔨 EL MARTILLAZO: Obligamos a la pantalla a actualizarse al instante
+        this.cdr.detectChanges(); 
       },
       error: (err) => {
         console.error("❌ Error al obtener carpetas:", err);
