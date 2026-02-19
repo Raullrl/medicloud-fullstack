@@ -40,7 +40,7 @@ export class App {
         this.temporizadorSesion = setTimeout(() => {
           alert("⏱️ Por seguridad, tu sesión ha caducado por inactividad. Vuelve a iniciar sesión.");
           this.finalizarSesion();
-        }, 900000);
+        }, 10000);
 
         this.cdr.detectChanges(); // Forzamos actualización visual
       },
