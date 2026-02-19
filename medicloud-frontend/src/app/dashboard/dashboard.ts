@@ -22,7 +22,7 @@ export class DashboardComponent implements OnInit {
     const token = localStorage.getItem('token_medicloud');
     const cabecerasSeguras = new HttpHeaders().set('Authorization', `Bearer ${token}`);
 
-    this.http.get('http://localhost:3000/api/carpetas', { headers: cabecerasSeguras }).subscribe({
+    this.http.get('https://medicloud-backend-tuug.onrender.com/api/carpetas', { headers: cabecerasSeguras }).subscribe({
       next: (respuesta: any) => {
         console.log('🕵️‍♂️ DATOS DEL SERVIDOR:', respuesta); 
         
