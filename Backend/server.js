@@ -4,17 +4,33 @@ const cors = require('cors');
 const mysql = require('mysql2');
 const bcrypt = require('bcryptjs'); 
 const jwt = require('jsonwebtoken'); 
+// 🛡️ 1. Importamos nuestras nuevas armas de seguridad
+const helmet = require('helmet');
+const rateLimit = require('express-rate-limit');
 
 const app = express();
 
+// 🛡️ 2. HELMET: Nuestro escudo de cabeceras de seguridad. 
+// LO PONEMOS ARRIBA DEL TODO. Oculta que usamos Express y nos defiende de XSS y Clickjacking.
+app.use(helmet());
+
 // --- CONFIGURACIÓN DE SEGURIDAD (CORS) ---
 app.use(cors({
-  origin: '*', // Permite peticiones desde cualquier origen (Vercel, local, etc.)
+  origin: '*', 
   methods: ['GET', 'POST', 'PUT', 'DELETE'],
   allowedHeaders: ['Content-Type', 'Authorization']
 }));
 
 app.use(express.json());
+
+// 🛡️ 3. LIMITADOR DE VELOCIDAD (Fuerza Bruta)
+// Creamos una regla: Máximo 5 intentos de login por IP cada 15 minutos
+const loginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutos de ventana
+  max: 5, // Límite de 5 peticiones por IP
+  message: { error: '⛔ Demasiados intentos fallidos. Tu IP ha sido bloqueada temporalmente. Inténtalo en 15 minutos.' }
+});
+
 
 // --- CONFIGURACIÓN DE LA BASE DE DATOS (AIVEN) ---
 const db = mysql.createPool({
@@ -27,7 +43,7 @@ const db = mysql.createPool({
   connectionLimit: 10,
   queueLimit: 0,
   ssl: {
-      rejectUnauthorized: false // Necesario para conectar con Aiven desde la nube
+      rejectUnauthorized: false 
   }
 });
 
@@ -45,7 +61,8 @@ app.get('/api/estado', (req, res) => {
 });
 
 // --- RUTA DE LOGIN ---
-app.post('/api/login', async (req, res) => {
+// 🛡️ 4. Aplicamos el limitador SOLO a la ruta de login
+app.post('/api/login', loginLimiter, async (req, res) => {
   const { usuario, password } = req.body;
   
   console.log(`📩 Intento de login recibido. Usuario: ${usuario}`);
@@ -77,7 +94,7 @@ app.post('/api/login', async (req, res) => {
       return res.status(401).json({ error: 'Usuario o contraseña incorrectos' });
     }
 
-    // Creación del Token JWT
+    // Creación del Token JWT (Caduca en 2 horas, control de sesiones implementado)
     const token = jwt.sign(
       { id: userDB.id_usuario, rol: userDB.id_rol, nombre: userDB.nombre_usuario },
       process.env.JWT_SECRET,
