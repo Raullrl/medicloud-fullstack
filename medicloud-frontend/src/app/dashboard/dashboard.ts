@@ -10,8 +10,10 @@ import { CommonModule } from '@angular/common';
   styleUrl: './dashboard.css'
 })
 export class DashboardComponent implements OnInit {
-  // El "altavoz" para avisar a app.ts
   @Output() cerrarSesionEvento = new EventEmitter<void>();
+  
+  // ✨ AQUÍ ESTÁ LA LÍNEA QUE FALTABA:
+  mensajeServidor = '¡Bóveda Segura de MediCloud conectada!';
   
   carpetas: any[] = [];
 
@@ -25,7 +27,6 @@ export class DashboardComponent implements OnInit {
     const token = localStorage.getItem('token_medicloud');
     const headers = new HttpHeaders().set('Authorization', `Bearer ${token}`);
 
-    // URL corregida con 'tuug'
     this.http.get('https://medicloud-backend-tuug.onrender.com/api/carpetas', { headers }).subscribe({
       next: (data: any) => {
         this.carpetas = data;
@@ -37,12 +38,8 @@ export class DashboardComponent implements OnInit {
   }
 
   cerrarSesion() {
-    // 1. Limpiamos el token por seguridad
     localStorage.removeItem('token_medicloud');
-    
-    // 2. Avisamos al componente padre
     this.cerrarSesionEvento.emit();
-    
     console.log("👋 Cerrando sesión...");
   }
 
@@ -54,5 +51,3 @@ export class DashboardComponent implements OnInit {
     }
   }
 }
-
-
