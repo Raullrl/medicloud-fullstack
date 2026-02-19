@@ -35,7 +35,11 @@ export class DashboardComponent implements OnInit {
     this.http.get('https://medicloud-backend-tuug.onrender.com/api/carpetas', { headers }).subscribe({
       next: (data: any) => {
         console.log("📍 PASO 5 (ÉXITO): ¡Han llegado los datos de Aiven!", data);
-        this.carpetas = data;
+        
+        // ✨ EL CAMBIO MÁGICO ESTÁ EN ESTA LÍNEA:
+        // Antes era: this.carpetas = data;
+        this.carpetas = data.carpetas; 
+        
       },
       error: (err) => {
         console.error("📍 PASO 5 (ERROR): Render ha rechazado la petición.", err);
