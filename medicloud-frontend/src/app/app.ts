@@ -16,6 +16,9 @@ export class App {
   sesionIniciada = false; 
   cargando = false; 
 
+  // ⏱️ AÑADIDO 1: Variable para guardar nuestro reloj de seguridad
+  temporizadorSesion: any;
+
   // ✨ AÑADIDO: ChangeDetectorRef para forzar a la pantalla a actualizarse
   constructor(private http: HttpClient, private cdr: ChangeDetectorRef) {}
 
@@ -31,6 +34,14 @@ export class App {
         this.sesionIniciada = true; 
         this.cargando = false; 
         console.log("✅ Login exitoso. Respuesta:", respuestaDelServidor);
+        
+        // ⏱️ AÑADIDO 2: Activamos la bomba de relojería (15 minutos)
+        // 15 minutos * 60 segundos * 1000 milisegundos = 900000 ms
+        this.temporizadorSesion = setTimeout(() => {
+          alert("⏱️ Por seguridad, tu sesión ha caducado por inactividad. Vuelve a iniciar sesión.");
+          this.finalizarSesion();
+        }, 900000);
+
         this.cdr.detectChanges(); // Forzamos actualización visual
       },
       error: (errorDelServidor) => {
@@ -56,6 +67,13 @@ export class App {
     this.sesionIniciada = false;
     this.usuario = '';
     this.password = '';
+    
+    // ⏱️ AÑADIDO 3: Borramos el token y apagamos el reloj si cierra sesión manualmente
+    localStorage.removeItem('token_medicloud'); 
+    if (this.temporizadorSesion) {
+      clearTimeout(this.temporizadorSesion);
+    }
+
     console.log("🔒 Sesión finalizada en App");
     this.cdr.detectChanges();
   }
