@@ -76,7 +76,15 @@ app.post('/api/login', loginLimiter, async (req, res) => {
     return res.status(400).json({ error: 'Faltan credenciales' });
   }
 
-  db.query('SELECT * FROM usuario WHERE nombre_usuario = ?', [usuario], async (err, results) => {
+  // ✨ SQL CORREGIDO: Buscamos el usuario y unimos con usuario_rol para obtener su id_rol
+  const queryLogin = `
+    SELECT u.*, ur.id_rol 
+    FROM usuario u
+    LEFT JOIN usuario_rol ur ON u.id_usuario = ur.id_usuario
+    WHERE u.nombre_usuario = ?
+  `;
+
+  db.query(queryLogin, [usuario], async (err, results) => {
     if (err) {
       console.error('❌ Error de Base de Datos en Login:', err);
       return res.status(500).json({ error: 'Error en el servidor' });
@@ -99,14 +107,14 @@ app.post('/api/login', loginLimiter, async (req, res) => {
       return res.status(401).json({ error: 'Usuario o contraseña incorrectos' });
     }
 
-    // Creación del Token JWT (Caduca en 2 horas, control de sesiones implementado)
+    // Creación del Token JWT usando el id_rol obtenido del JOIN
     const token = jwt.sign(
       { id: userDB.id_usuario, rol: userDB.id_rol, nombre: userDB.nombre_usuario },
       process.env.JWT_SECRET,
       { expiresIn: '2h' }
     );
 
-    console.log(`✅ Login exitoso: ${usuario}`);
+    console.log(`✅ Login exitoso: ${usuario} con rol ${userDB.id_rol}`);
     res.json({
       mensaje: `¡Bienvenido a MediCloud, ${userDB.nombre_usuario}!`,
       token: token
@@ -163,7 +171,7 @@ app.get('/api/carpetas', verificarToken, (req, res) => {
   });
 });
 
-// ✨ --- RUTA PROTEGIDA: PANEL DE ADMINISTRADOR (NUEVA) --- ✨
+// ✨ --- RUTA PROTEGIDA: PANEL DE ADMINISTRADOR (NUEVA Y CORREGIDA) --- ✨
 app.get('/api/admin/usuarios', verificarToken, (req, res) => {
   console.log(`🛡️ Usuario ${req.usuario.nombre} (Rol: ${req.usuario.rol}) intentando entrar al Panel Admin...`);
   
@@ -173,11 +181,12 @@ app.get('/api/admin/usuarios', verificarToken, (req, res) => {
     return res.status(403).json({ error: 'Acceso denegado. Se requiere nivel de Administrador.' });
   }
 
-  // Si es Admin, buscamos a todos los usuarios en la base de datos haciendo JOIN con el rol
+  // ✨ SQL CORREGIDO: Buscamos a todos los usuarios pasando por usuario_rol para llegar a rol
   const querySQL = `
     SELECT u.id_usuario, u.nombre_usuario, r.nombre_rol, u.estado 
     FROM usuario u
-    JOIN rol r ON u.id_rol = r.id_rol
+    LEFT JOIN usuario_rol ur ON u.id_usuario = ur.id_usuario
+    LEFT JOIN rol r ON ur.id_rol = r.id_rol
   `;
 
   db.query(querySQL, (err, results) => {
