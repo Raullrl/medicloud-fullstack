@@ -37,7 +37,6 @@ const loginLimiter = rateLimit({
   message: { error: '⛔ Demasiados intentos fallidos. Tu IP ha sido bloqueada temporalmente. Inténtalo en 15 minutos.' }
 });
 
-
 // --- CONFIGURACIÓN DE LA BASE DE DATOS (AIVEN) ---
 const db = mysql.createPool({
   host: process.env.DB_HOST,
@@ -160,6 +159,36 @@ app.get('/api/carpetas', verificarToken, (req, res) => {
       mensaje: "✅ ¡Bóveda Segura de MediCloud conectada!",
       tu_identidad: req.usuario,
       carpetas: results
+    });
+  });
+});
+
+// ✨ --- RUTA PROTEGIDA: PANEL DE ADMINISTRADOR (NUEVA) --- ✨
+app.get('/api/admin/usuarios', verificarToken, (req, res) => {
+  console.log(`🛡️ Usuario ${req.usuario.nombre} (Rol: ${req.usuario.rol}) intentando entrar al Panel Admin...`);
+  
+  // VERIFICACIÓN DE ROL: Solo dejamos pasar al SysAdmin (Rol 3) o Gerencia (Rol 1)
+  if (req.usuario.rol !== 3 && req.usuario.rol !== 1) {
+    console.log("⛔ Bloqueado: No tiene privilegios de administrador.");
+    return res.status(403).json({ error: 'Acceso denegado. Se requiere nivel de Administrador.' });
+  }
+
+  // Si es Admin, buscamos a todos los usuarios en la base de datos haciendo JOIN con el rol
+  const querySQL = `
+    SELECT u.id_usuario, u.nombre_usuario, r.nombre_rol, u.estado 
+    FROM usuario u
+    JOIN rol r ON u.id_rol = r.id_rol
+  `;
+
+  db.query(querySQL, (err, results) => {
+    if (err) {
+      console.error('❌ Error al listar usuarios:', err);
+      return res.status(500).json({ error: 'Error del servidor al leer los usuarios' });
+    }
+
+    res.json({
+      mensaje: "✅ Lista de empleados obtenida con éxito",
+      usuarios: results
     });
   });
 });
