@@ -14,10 +14,16 @@ export class App {
   usuario = '';
   password = '';
   sesionIniciada = false; 
+  
+  // ✨ VARIABLE AÑADIDA: Controla el estado del botón
+  cargando = false; 
 
   constructor(private http: HttpClient) {}
 
   iniciarSesion() {
+    // ✨ AÑADIDO: Bloqueamos el botón nada más pulsarlo
+    this.cargando = true; 
+
     const paqueteDatos = { usuario: this.usuario, password: this.password };
 
     // URL corregida con 'tuug'
@@ -25,9 +31,14 @@ export class App {
       next: (respuestaDelServidor: any) => {
         localStorage.setItem('token_medicloud', respuestaDelServidor.token);
         this.sesionIniciada = true; 
+        
+        // ✨ AÑADIDO: Desbloqueamos el botón si entramos con éxito
+        this.cargando = false; 
         console.log("✅ Login exitoso");
       },
       error: (errorDelServidor) => {
+        // ✨ AÑADIDO: Desbloqueamos el botón también si hay un error (ej. contraseña mal)
+        this.cargando = false; 
         alert('⛔ ERROR: ' + (errorDelServidor.error.error || 'Fallo en la conexión'));
       }
     });

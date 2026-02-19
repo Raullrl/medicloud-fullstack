@@ -14,7 +14,10 @@
         <input type="password" placeholder="••••••" [(ngModel)]="password">
       </div>
 
-      <button (click)="iniciarSesion()">Entrar a la Bóveda</button>
+      <button (click)="iniciarSesion()" [disabled]="cargando" [style.opacity]="cargando ? '0.7' : '1'">
+        {{ cargando ? '⏳ Conectando de forma segura...' : 'Entrar a la Bóveda' }}
+      </button>
+
     </div>
   </div>
 } @else {
