@@ -14,39 +14,35 @@ export class DashboardComponent implements OnInit {
   
   mensajeServidor = '¡Bóveda Segura de MediCloud conectada!';
   carpetas: any[] = [];
+  
+  // ✨ NUEVA VARIABLE: Controla si estamos esperando respuesta del servidor
+  cargandoBoveda: boolean = true; 
 
-  // ✨ AÑADIDO: Variables para el control de roles y el panel de administrador
   esAdmin: boolean = false;
   nombreUsuario: string = '';
-  vistaActual: 'boveda' | 'admin' = 'boveda'; // Controla qué pantalla vemos
-  listaUsuarios: any[] = []; // Guardará la lista de empleados
+  vistaActual: 'boveda' | 'admin' = 'boveda'; 
+  listaUsuarios: any[] = []; 
 
   constructor(private http: HttpClient, private cdr: ChangeDetectorRef) {}
 
   ngOnInit() {
-    this.leerIdentidadUsuario(); // ✨ AÑADIDO: Desciframos el token al entrar
+    this.leerIdentidadUsuario(); 
     this.obtenerCarpetas();
   }
 
-  // ✨ CORREGIDO: Ahora el botón de Admin solo aparecerá para el SysAdmin (Rol 3)
   leerIdentidadUsuario() {
     const token = localStorage.getItem('token_medicloud');
     if (token) {
       try {
         const payload = JSON.parse(atob(token.split('.')[1]));
         this.nombreUsuario = payload.nombre;
-        
-        // 🛡️ LÓGICA DE SEGURIDAD:
-        // El botón de Panel de Administración solo se muestra si el rol es estrictamente 3.
         this.esAdmin = (payload.rol === 3); 
-        
       } catch (e) {
         console.error("Error al leer el token", e);
       }
     }
   }
 
-  // ✨ AÑADIDO: Función para cambiar entre la Bóveda y el Panel Admin
   cambiarVista(vista: 'boveda' | 'admin') {
     this.vistaActual = vista;
     if (vista === 'admin') {
@@ -55,7 +51,6 @@ export class DashboardComponent implements OnInit {
     this.cdr.detectChanges();
   }
 
-  // ✨ AÑADIDO: Función que pide al backend la lista de empleados (CRUD)
   obtenerUsuariosAdmin() {
     const token = localStorage.getItem('token_medicloud');
     const headers = new HttpHeaders().set('Authorization', `Bearer ${token}`);
@@ -73,6 +68,7 @@ export class DashboardComponent implements OnInit {
   }
 
   obtenerCarpetas() {
+    this.cargandoBoveda = true; // ✨ Empezamos a cargar
     const token = localStorage.getItem('token_medicloud');
     const headers = new HttpHeaders().set('Authorization', `Bearer ${token}`);
 
@@ -83,10 +79,13 @@ export class DashboardComponent implements OnInit {
         } else if (Array.isArray(respuesta)) {
           this.carpetas = respuesta;
         }
+        this.cargandoBoveda = false; // ✨ Carga finalizada con éxito
         this.cdr.detectChanges(); 
       },
       error: (err) => {
         console.error("❌ Error al obtener carpetas:", err);
+        this.cargandoBoveda = false; // ✨ Carga finalizada (aunque fallara)
+        this.cdr.detectChanges();
       }
     });
   }
