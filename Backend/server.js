@@ -165,10 +165,12 @@ app.get('/api/carpetas', verificarToken, (req, res) => {
   }
 });
 
-// ✨ --- RUTA PROTEGIDA: PANEL DE ADMINISTRADOR --- ✨
+// ✨ --- RUTA PROTEGIDA: PANEL DE ADMINISTRADOR (SOLO SYSADMIN) --- ✨
 app.get('/api/admin/usuarios', verificarToken, (req, res) => {
-  if (req.usuario.rol !== 3 && req.usuario.rol !== 1) {
-    return res.status(403).json({ error: 'Acceso denegado.' });
+  // 🛡️ SEGURIDAD NIVEL 10: Solo el SysAdmin (3) entra. Gerencia (1) es rechazada aquí.
+  if (req.usuario.rol !== 3) {
+    console.log(`⛔ Bloqueo: El usuario ${req.usuario.nombre} (Rol ${req.usuario.rol}) intentó acceder a gestión de usuarios.`);
+    return res.status(403).json({ error: 'Acceso denegado. Se requieren privilegios de Administrador Técnico (SysAdmin).' });
   }
 
   const querySQL = `
@@ -179,8 +181,15 @@ app.get('/api/admin/usuarios', verificarToken, (req, res) => {
   `;
 
   db.query(querySQL, (err, results) => {
-    if (err) return res.status(500).json({ error: 'Error en la lista' });
-    res.json({ usuarios: results });
+    if (err) {
+      console.error('❌ Error al listar usuarios:', err);
+      return res.status(500).json({ error: 'Error del servidor al leer los usuarios' });
+    }
+
+    res.json({
+      mensaje: "✅ Lista de empleados obtenida con éxito",
+      usuarios: results
+    });
   });
 });
 
