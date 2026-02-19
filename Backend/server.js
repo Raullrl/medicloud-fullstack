@@ -60,13 +60,12 @@ app.get('/api/estado', (req, res) => {
 
 // --- RUTA DE LOGIN (ACTUALIZADA: BUSQUEDA POR EMAIL) ---
 app.post('/api/login', loginLimiter, async (req, res) => {
-  const { usuario, password } = req.body; // 'usuario' ahora recibirá el email
+  const { usuario, password } = req.body; 
   
   if (!usuario || !password) {
     return res.status(400).json({ error: 'Faltan credenciales' });
   }
 
-  // ✨ SQL: Buscamos por la nueva columna EMAIL
   const queryLogin = `
     SELECT u.*, ur.id_rol 
     FROM usuario u
@@ -95,7 +94,6 @@ app.post('/api/login', loginLimiter, async (req, res) => {
       return res.status(401).json({ error: 'Email o contraseña incorrectos' });
     }
 
-    // ✨ TOKEN: Ahora incluimos el EMAIL para poder filtrar por dominio después
     const token = jwt.sign(
       { 
         id: userDB.id_usuario, 
@@ -132,12 +130,10 @@ const verificarToken = (req, res, next) => {
 // --- RUTA PROTEGIDA: CARPETAS (CON FILTRADO POR DOMINIO) ---
 app.get('/api/carpetas', verificarToken, (req, res) => {
   
-  // ✨ LÓGICA DE AISLAMIENTO: Extraemos el dominio del email
-  // Ejemplo: 'pablo@clinicadental.es' -> dominio: 'clinicadental'
   const email = req.usuario.email || '';
   const dominio = email.split('@')[1]?.split('.')[0] || '';
   
-  console.log(`📂 Usuario ${req.usuario.nombre} solicita carpetas para el dominio: ${dominio}`);
+  console.log(`📂 Usuario ${req.usuario.nombre} (Rol: ${req.usuario.rol}) solicita carpetas.`);
 
   let querySQL = `
     SELECT 
@@ -149,9 +145,10 @@ app.get('/api/carpetas', verificarToken, (req, res) => {
     JOIN cliente cl ON c.id_cliente = cl.id_cliente
   `;
 
-  // 🛡️ REGLA DE SEGURIDAD:
-  // Si el usuario NO es SysAdmin (Rol 3), filtramos para que solo vea su dominio.
-  if (req.usuario.rol !== 3) {
+  // 🛡️ REGLA DE SEGURIDAD ACTUALIZADA:
+  // Si el usuario NO es SysAdmin (Rol 3) Y TAMPOCO es Gerencia (Rol 1), filtramos por dominio.
+  if (req.usuario.rol !== 3 && req.usuario.rol !== 1) {
+    console.log(`🔒 Aplicando aislamiento de datos por dominio: ${dominio}`);
     querySQL += ` WHERE cl.nombre_empresa LIKE ?`;
     
     db.query(querySQL, [`%${dominio}%`], (err, results) => {
@@ -159,7 +156,8 @@ app.get('/api/carpetas', verificarToken, (req, res) => {
       res.json({ mensaje: "Bóveda filtrada por dominio", carpetas: results });
     });
   } else {
-    // Si es SysAdmin, puede verlo TODO (Auditoría total)
+    // Si es SysAdmin (3) o Gerencia (1), puede verlo TODO (Auditoría total)
+    console.log(`🔓 Acceso administrativo concedido. Sin restricciones de dominio.`);
     db.query(querySQL, (err, results) => {
       if (err) return res.status(500).json({ error: 'Error al leer bóveda' });
       res.json({ mensaje: "Acceso total de administrador", carpetas: results });
@@ -173,7 +171,6 @@ app.get('/api/admin/usuarios', verificarToken, (req, res) => {
     return res.status(403).json({ error: 'Acceso denegado.' });
   }
 
-  // ✨ Mostramos también el EMAIL en la tabla de gestión
   const querySQL = `
     SELECT u.id_usuario, u.nombre_usuario, u.email, r.nombre_rol, u.estado 
     FROM usuario u
