@@ -117,7 +117,7 @@ const verificarToken = (req, res, next) => {
   if (!token) return res.status(401).json({ error: 'Acceso denegado' });
 
   jwt.verify(token, process.env.JWT_SECRET, (err, usuarioDecodificado) => {
-    if (err) return res.status(401).json({ error: 'Token inválido o caducado' }); // ✨ Cambiado a 401 para la expulsión automática
+    if (err) return res.status(401).json({ error: 'Token inválido o caducado' });
     req.usuario = usuarioDecodificado;
     next();
   });
@@ -231,9 +231,9 @@ app.post('/api/carpetas/upload', verificarToken, upload.single('archivo'), async
     const { data, error } = await supabase.storage.from('historiales-medicos').upload(nombreUnico, archivo.buffer, { contentType: archivo.mimetype });
     if (error) throw error;
 
-    const { data: urlData } = supabase.storage.from('historiales-medicos').getPublicUrl(nombreUnico);
-    const urlPublica = urlData.publicUrl;
-
+    // ✨ CORRECCIÓN DE SEGURIDAD: Ya NO guardamos la URL pública completa. 
+    // Solo guardamos el 'nombreUnico' (la ruta interna del archivo).
+    
     const sqlDoc = "INSERT INTO documento (id_carpeta, nombre_archivo, tipo_documento, nivel_criticidad, estado_cifrado) VALUES (?, ?, ?, ?, 1)";
     const tipo = archivo.mimetype.split('/')[1].toUpperCase();
     
@@ -241,7 +241,8 @@ app.post('/api/carpetas/upload', verificarToken, upload.single('archivo'), async
       if (errD) return res.status(500).json({ error: 'Error al registrar documento en Aiven' });
       
       const sqlVer = "INSERT INTO version_documento (id_documento, ruta_cifrada, hash_integridad) VALUES (?, ?, ?)";
-      db.query(sqlVer, [resD.insertId, urlPublica, 'SHA256-BY-SYSTEM'], (errV) => {
+      // Pasamos 'nombreUnico' en lugar de 'urlPublica'
+      db.query(sqlVer, [resD.insertId, nombreUnico, 'SHA256-BY-SYSTEM'], (errV) => {
         if (errV) return res.status(500).json({ error: 'Error al registrar versión' });
 
         registrarAuditoria(req.usuario.email, req.usuario.rol, `SUBIDA ARCHIVO: ${nombre}`);
@@ -250,6 +251,37 @@ app.post('/api/carpetas/upload', verificarToken, upload.single('archivo'), async
       });
     });
   } catch (e) { res.status(500).json({ error: 'Fallo en Storage: ' + e.message }); }
+});
+
+// ✨ NUEVA RUTA DE SEGURIDAD: Generador de URLs Firmadas (Autodestructibles)
+app.get('/api/documentos/:id/url', verificarToken, (req, res) => {
+  const idDoc = req.params.id;
+  const ipCliente = req.headers['x-forwarded-for'] || req.ip;
+
+  // 1. Buscamos la ruta del archivo en la BD
+  db.query("SELECT ruta_cifrada FROM version_documento WHERE id_documento = ?", [idDoc], async (err, results) => {
+    if (err || results.length === 0) return res.status(404).json({ error: 'Documento no encontrado en la bóveda.' });
+
+    let ruta_interna = results[0].ruta_cifrada;
+
+    // 2. Magia para la compatibilidad: Si el archivo es antiguo y tiene la URL pública entera guardada, 
+    // le extraemos solo el final (el nombre del archivo).
+    if (ruta_interna.includes('/historiales-medicos/')) {
+        ruta_interna = ruta_interna.split('/historiales-medicos/')[1];
+    }
+
+    // 3. Hablamos con Supabase para generar la URL Firmada. Expira en 60 segundos.
+    const { data, error } = await supabase.storage.from('historiales-medicos').createSignedUrl(ruta_interna, 60);
+
+    if (error) return res.status(500).json({ error: 'Error al generar enlace seguro de acceso temporal.' });
+
+    // 4. Auditamos quién ha pedido ver este documento
+    registrarAuditoria(req.usuario.email, req.usuario.rol, `LECTURA DE DOCUMENTO ID: ${idDoc} (URL Segura)`);
+    registrarLogForense(req.usuario.id, idDoc, ipCliente, 'READ_FILE_SECURE', 'EXITOSO');
+
+    // 5. Devolvemos el enlace temporal al frontend
+    res.json({ url: data.signedUrl });
+  });
 });
 
 app.delete('/api/documentos/:id', verificarToken, (req, res) => {
@@ -286,8 +318,6 @@ app.delete('/api/carpetas/:id', verificarToken, (req, res) => {
   });
 });
 
-// ✨ --- RUTAS ADMIN AMPLIADAS --- ✨
-
 app.get('/api/admin/usuarios', verificarToken, (req, res) => {
   const ipCliente = req.headers['x-forwarded-for'] || req.ip;
   if (req.usuario.rol !== 3) {
@@ -320,7 +350,6 @@ app.put('/api/admin/usuarios/:id/estado', verificarToken, (req, res) => {
   });
 });
 
-// ✨ NUEVO: Resetear Contraseña
 app.put('/api/admin/usuarios/:id/reset', verificarToken, async (req, res) => {
   if (req.usuario.rol !== 3) return res.status(403).json({ error: 'Solo SysAdmin' });
   const { nuevaClave } = req.body;
@@ -333,7 +362,6 @@ app.put('/api/admin/usuarios/:id/reset', verificarToken, async (req, res) => {
   });
 });
 
-// ✨ NUEVO: Eliminar Usuario Seguramente (Poniendo sus logs a NULL primero)
 app.delete('/api/admin/usuarios/:id', verificarToken, (req, res) => {
   if (req.usuario.rol !== 3) return res.status(403).json({ error: 'Solo SysAdmin' });
   const idUser = req.params.id;
@@ -349,10 +377,8 @@ app.delete('/api/admin/usuarios/:id', verificarToken, (req, res) => {
   });
 });
 
-// ✨ NUEVO: Visor Forense
 app.get('/api/admin/auditoria', verificarToken, (req, res) => {
   if (req.usuario.rol !== 3) return res.status(403).json({ error: 'Acceso denegado' });
-  // Mostramos los últimos 100 movimientos
   const sql = "SELECT id_registro, usuario_email, accion_realizada, fecha_accion FROM registro_auditoria ORDER BY fecha_accion DESC LIMIT 100";
   db.query(sql, (err, results) => {
     if(err) return res.status(500).json({error: 'Error al leer auditoría'});

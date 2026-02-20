@@ -20,10 +20,10 @@ export class DashboardComponent implements OnInit {
   tieneAccesoTotal: boolean = false; 
   nombreUsuario: string = '';
   vistaActual: 'boveda' | 'admin' = 'boveda'; 
-  subVistaAdmin: 'usuarios' | 'auditoria' = 'usuarios'; // ✨ Para las pestañas del admin
+  subVistaAdmin: 'usuarios' | 'auditoria' = 'usuarios'; 
   
   listaUsuarios: any[] = []; 
-  logsAuditoria: any[] = []; // ✨ Lista de logs
+  logsAuditoria: any[] = []; 
 
   misCarpetas: any[] = []; 
   carpetas: any[] = []; 
@@ -49,7 +49,6 @@ export class DashboardComponent implements OnInit {
     this.obtenerDatosCompletos(); 
   }
 
-  // ✨ MEJORA DE SEGURIDAD: Expulsión automática si el token caduca (Error 401)
   manejarErrorSeguridad(err: any) {
     if (err.status === 401 || err.status === 403) {
       alert("🔒 Tu sesión ha caducado o no tienes permisos. Por tu seguridad, vuelve a iniciar sesión.");
@@ -77,7 +76,7 @@ export class DashboardComponent implements OnInit {
     this.vistaActual = vista;
     if (vista === 'admin') {
       this.obtenerUsuariosAdmin();
-      this.obtenerLogsAuditoria(); // ✨ Cargar logs al entrar al panel
+      this.obtenerLogsAuditoria(); 
     }
     this.cdr.detectChanges();
   }
@@ -154,7 +153,6 @@ export class DashboardComponent implements OnInit {
     });
   }
 
-  // ✨ NUEVO: Obtener Logs
   obtenerLogsAuditoria() {
     const token = localStorage.getItem('token_medicloud');
     const headers = new HttpHeaders().set('Authorization', `Bearer ${token}`);
@@ -243,9 +241,19 @@ export class DashboardComponent implements OnInit {
     this.cerrarSesionEvento.emit();
   }
 
-  abrirCarpeta(url: string) { if (url) window.open(url, '_blank'); }
-
-  // ✨ FUNCIONES ADMIN AMPLIADAS ✨
+  // ✨ LA GRAN MEJORA: Ya no abrimos URLs a lo loco, se las pedimos al servidor
+  abrirDocumento(doc: any) {
+    const headers = new HttpHeaders().set('Authorization', `Bearer ${localStorage.getItem('token_medicloud')}`);
+    
+    // Solicitamos una URL Temporal (Autodestructible en 60s)
+    this.http.get(`https://medicloud-backend-tuug.onrender.com/api/documentos/${doc.id_documento}/url`, { headers }).subscribe({
+      next: (res: any) => {
+        // Abrimos el archivo de forma segura en otra pestaña
+        window.open(res.url, '_blank');
+      },
+      error: (err) => this.manejarErrorSeguridad(err)
+    });
+  }
 
   toggleEstado(usuario: any) {
     const nuevoEstado = usuario.estado === 'Bloqueado' ? 'Activo' : 'Bloqueado';
