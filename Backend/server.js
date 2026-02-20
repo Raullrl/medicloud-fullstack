@@ -273,27 +273,25 @@ app.get('/api/documentos/:id/url', verificarToken, (req, res) => {
   });
 });
 
-// ✨ LA RUTA DE BORRADO ACTUALIZADA (Eliminación Física en Supabase + Lógica en MySQL)
+// ✨ RUTA DE BORRADO DEFINITIVA (Soporta archivos antiguos y nuevos) ✨
 app.delete('/api/documentos/:id', verificarToken, async (req, res) => {
   const idDoc = req.params.id;
   const ipCliente = req.headers['x-forwarded-for'] || req.ip;
 
-  // PASO 1: Obtener el nombre del archivo en Supabase antes de borrarlo de la BD
   db.query("SELECT ruta_cifrada FROM version_documento WHERE id_documento = ?", [idDoc], async (err, results) => {
     if (err || results.length === 0) return res.status(404).json({ error: 'Documento no encontrado.' });
     
     let nombreArchivo = results[0].ruta_cifrada;
     
-    // Si es un archivo antiguo con URL completa, nos quedamos solo con el nombre
+    // ✨ Limpieza automática para compatibilidad con documentos antiguos
     if (nombreArchivo.includes('/historiales-medicos/')) {
         nombreArchivo = nombreArchivo.split('/historiales-medicos/')[1];
     }
 
-    // PASO 2: Ordenar a Supabase que DESTRUYA el archivo físico en la nube 💥
-    const { error: errorSupabase } = await supabase.storage.from('historiales-medicos').remove([nombreArchivo]);
-    if (errorSupabase) console.error("⚠️ Aviso: No se pudo borrar el archivo físico de Supabase:", errorSupabase);
+    // Intentamos borrar en Supabase, pero si da error (porque el archivo ya no existe), 
+    // permitimos continuar para limpiar la base de datos MySQL.
+    await supabase.storage.from('historiales-medicos').remove([nombreArchivo]);
 
-    // PASO 3: Proceder con el borrado limpio en MySQL
     db.query("UPDATE log_acceso SET id_documento = NULL WHERE id_documento = ?", [idDoc], (errLog) => {
       if (errLog) return res.status(500).json({ error: 'Error al actualizar auditoría forense.' });
 
@@ -303,9 +301,9 @@ app.delete('/api/documentos/:id', verificarToken, async (req, res) => {
         db.query("DELETE FROM documento WHERE id_documento = ?", [idDoc], (errDel) => {
           if (errDel) return res.status(500).json({ error: 'Error al eliminar el documento principal.' });
           
-          registrarAuditoria(req.usuario.email, req.usuario.rol, `DOC. Y ARCHIVO FÍSICO ELIMINADO ID: ${idDoc}`);
+          registrarAuditoria(req.usuario.email, req.usuario.rol, `DOC. ELIMINADO ID: ${idDoc}`);
           registrarLogForense(req.usuario.id, null, ipCliente, 'DELETE_FILE', 'EXITOSO'); 
-          res.json({ mensaje: 'Expediente y archivo en la nube eliminados de forma permanente.' });
+          res.json({ mensaje: 'Expediente eliminado de forma permanente.' });
         });
       });
     });
