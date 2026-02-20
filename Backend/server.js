@@ -51,12 +51,13 @@ const db = mysql.createPool({
 console.log("📡 Backend conectado a la base de datos de Aiven...");
 
 // ✨ --- FUNCIÓN AUXILIAR PARA REGISTRO_ACCESO (FORENSE) --- ✨
+// CORRECCIÓN: Se cambia Log_acceso por log_acceso para evitar errores de Case Sensitivity en Linux
 const registrarLogForense = (id_usuario, id_doc, ip, accion, resultado) => {
-  const sql = `INSERT INTO Log_acceso (id_usuario, id_documento, ip_origen, accion, resultado) 
+  const sql = `INSERT INTO log_acceso (id_usuario, id_documento, ip_origen, accion, resultado) 
                VALUES (?, ?, ?, ?, ?)`;
   // Usamos null si no hay id_doc (como en el login o lista general)
   db.query(sql, [id_usuario, id_doc || null, ip, accion, resultado], (err) => {
-    if (err) console.error("❌ Error en Log_acceso:", err.message);
+    if (err) console.error("❌ Error en log_acceso:", err.message);
   });
 };
 
@@ -87,7 +88,7 @@ app.post('/api/login', loginLimiter, async (req, res) => {
   db.query(queryLogin, [usuario], async (err, results) => {
     if (err) return res.status(500).json({ error: 'Error en el servidor' });
 
-    // Si el usuario no existe, no podemos registrarlo en Log_acceso por la FK id_usuario
+    // Si el usuario no existe, no podemos registrarlo en log_acceso por la FK id_usuario
     if (results.length === 0) return res.status(401).json({ error: 'Email o contraseña incorrectos' });
 
     const userDB = results[0];
@@ -142,7 +143,7 @@ app.get('/api/carpetas', verificarToken, (req, res) => {
   const sqlLog = "INSERT INTO registro_auditoria (usuario_email, rol_id, accion_realizada) VALUES (?, ?, ?)";
   db.query(sqlLog, [email, req.usuario.rol, `Acceso a bóveda - Dominio: ${dominio}`]);
 
-  // ✨ REGISTRO FORENSE (Tabla avanzada Log_acceso)
+  // ✨ REGISTRO FORENSE (Tabla avanzada log_acceso)
   registrarLogForense(req.usuario.id, null, ipCliente, 'CONSULTA_BOVEDA', 'EXITOSO');
 
   let querySQL = `
@@ -224,7 +225,7 @@ app.get('/api/admin/usuarios', verificarToken, (req, res) => {
 app.get('/api/crear-hash/:clave', async (req, res) => {
   const salt = await bcrypt.genSalt(10);
   const hash = await bcrypt.hash(req.params.clave, salt);
-  res.json({ hash_generado: hash });
+  res.json({ hash_generated: hash });
 });
 
 const PORT = process.env.PORT || 3000;
