@@ -256,33 +256,38 @@ app.post('/api/carpetas/upload', verificarToken, upload.single('archivo'), async
   } catch (e) { res.status(500).json({ error: 'Fallo en Storage: ' + e.message }); }
 });
 
-// ✨ --- NUEVAS RUTAS: ELIMINAR --- ✨
+// ✨ --- RUTAS: ELIMINAR (CORREGIDAS) --- ✨
 
-// 1. Eliminar Documento
+// 1. Eliminar Documento (Cuidando el Log Forense)
 app.delete('/api/documentos/:id', verificarToken, (req, res) => {
   const idDoc = req.params.id;
   const ipCliente = req.headers['x-forwarded-for'] || req.ip;
 
-  // Primero borramos las versiones para que la BDD no de error de Clave Foránea
-  db.query("DELETE FROM version_documento WHERE id_documento = ?", [idDoc], (err) => {
-    if (err) return res.status(500).json({ error: 'Error al eliminar versiones de la BD.' });
-    
-    // Luego borramos el documento principal
-    db.query("DELETE FROM documento WHERE id_documento = ?", [idDoc], (errDel) => {
-      if (errDel) return res.status(500).json({ error: 'Error al eliminar el documento.' });
+  // PASO 1: Desvincular el documento de los logs de acceso (para no perder la auditoría)
+  db.query("UPDATE log_acceso SET id_documento = NULL WHERE id_documento = ?", [idDoc], (errLog) => {
+    if (errLog) return res.status(500).json({ error: 'Error al actualizar auditoría forense.' });
+
+    // PASO 2: Borramos las versiones vinculadas
+    db.query("DELETE FROM version_documento WHERE id_documento = ?", [idDoc], (errVer) => {
+      if (errVer) return res.status(500).json({ error: 'Error al eliminar versiones de la BD.' });
       
-      registrarAuditoria(req.usuario.email, req.usuario.rol, `DOCUMENTO ELIMINADO ID: ${idDoc}`);
-      registrarLogForense(req.usuario.id, idDoc, ipCliente, 'DELETE_FILE', 'EXITOSO');
-      res.json({ mensaje: 'Documento eliminado de forma segura.' });
+      // PASO 3: Por fin, borramos el documento principal
+      db.query("DELETE FROM documento WHERE id_documento = ?", [idDoc], (errDel) => {
+        if (errDel) return res.status(500).json({ error: 'Error al eliminar el documento principal.' });
+        
+        registrarAuditoria(req.usuario.email, req.usuario.rol, `DOCUMENTO ELIMINADO ID: ${idDoc}`);
+        // Registramos la acción usando null porque el id_doc ya no existe
+        registrarLogForense(req.usuario.id, null, ipCliente, 'DELETE_FILE', 'EXITOSO'); 
+        res.json({ mensaje: 'Documento eliminado de forma segura.' });
+      });
     });
   });
 });
 
-// 2. Eliminar Carpeta (con comprobación de seguridad)
+// 2. Eliminar Carpeta 
 app.delete('/api/carpetas/:id', verificarToken, (req, res) => {
   const idCarpeta = req.params.id;
 
-  // Comprobamos si tiene documentos dentro
   db.query("SELECT COUNT(*) AS total FROM documento WHERE id_carpeta = ?", [idCarpeta], (err, results) => {
     if (err) return res.status(500).json({ error: 'Error al verificar la carpeta.' });
     
@@ -290,7 +295,6 @@ app.delete('/api/carpetas/:id', verificarToken, (req, res) => {
       return res.status(400).json({ error: 'No puedes borrar un directorio que contiene documentos. Vacíalo primero.' });
     }
 
-    // Si está vacía, procedemos a borrarla
     db.query("DELETE FROM carpeta WHERE id_carpeta = ?", [idCarpeta], (errDel) => {
       if (errDel) return res.status(500).json({ error: 'Error al eliminar la carpeta.' });
       
