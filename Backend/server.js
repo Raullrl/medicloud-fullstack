@@ -232,8 +232,9 @@ app.post('/api/admin/usuarios', verificarToken, async (req, res) => {
     const salt = await bcrypt.genSalt(10);
     const hash = await bcrypt.hash(password, salt);
 
+    // ✨ CORREGIDO: Cambiado 'Activa' por 'Activo'
     db.query('INSERT INTO usuario (nombre_usuario, email, hash_contraseña, estado) VALUES (?, ?, ?, ?)', 
-    [nombre, email, hash, 'Activa'], (err, result) => {
+    [nombre, email, hash, 'Activo'], (err, result) => {
       if (err) return res.status(500).json({ error: 'Error SQL Insertar Usuario: ' + err.message });
 
       db.query('INSERT INTO usuario_rol (id_usuario, id_rol) VALUES (?, ?)', [result.insertId, id_rol], (err) => {
