@@ -17,12 +17,11 @@
     max-width: 420px;
 }
 
-/* REEMPLAZA TU CLASE .login-logo ACTUAL POR ESTA */
 .login-logo {
-    width: 160px;        /* Tamaño fijo, pequeño y controlado */
-    height: auto;        /* Mantiene la proporción para que no se deforme */
-    display: block;      /* Se comporta como un bloque... */
-    margin: 0 auto 30px auto; /* ...para poder centrarlo automáticamente */
+    width: 160px;        /* Ahora sí se aplicará este tamaño */
+    height: auto;
+    display: block;
+    margin: 0 auto 30px auto; 
 }
 
 .input-group {
