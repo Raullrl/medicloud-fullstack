@@ -35,7 +35,6 @@ export class DashboardComponent implements OnInit {
   archivoSeleccionado: File | null = null;
   nuevoDoc = { nombre: '', criticidad: 'NORMAL', id_carpeta: '' }; 
 
-  // ✨ VARIABLES NUEVAS PARA CREAR CARPETAS
   mostrarModalCarpeta: boolean = false;
   nuevaCarpetaNombre: string = '';
   creandoCarpeta: boolean = false;
@@ -185,7 +184,6 @@ export class DashboardComponent implements OnInit {
     });
   }
 
-  // ✨ NUEVA FUNCIÓN: CREAR CARPETA
   crearCarpeta() {
     if (!this.nuevaCarpetaNombre.trim()) {
       alert("El nombre del directorio no puede estar vacío.");
@@ -202,12 +200,49 @@ export class DashboardComponent implements OnInit {
         this.mostrarModalCarpeta = false;
         this.nuevaCarpetaNombre = '';
         this.creandoCarpeta = false;
-        this.obtenerDatosCompletos(); // Refresca todo para mostrar la nueva carpeta
+        this.obtenerDatosCompletos();
       },
       error: (err) => {
         alert("❌ Error: " + (err.error?.error || "Fallo al crear directorio"));
         this.creandoCarpeta = false;
         this.cdr.detectChanges();
+      }
+    });
+  }
+
+  // ✨ NUEVA FUNCIÓN: ELIMINAR CARPETA
+  eliminarCarpeta(carpeta: any, event: Event) {
+    event.stopPropagation(); // Evita que la carpeta se abra al pulsar el botón de borrar
+    if (!confirm(`¿Estás seguro de que deseas eliminar la carpeta "${carpeta.nombre}"?`)) return;
+
+    const token = localStorage.getItem('token_medicloud');
+    const headers = new HttpHeaders().set('Authorization', `Bearer ${token}`);
+
+    this.http.delete(`https://medicloud-backend-tuug.onrender.com/api/carpetas/${carpeta.id_carpeta}`, { headers }).subscribe({
+      next: (res: any) => {
+        alert("✅ " + res.mensaje);
+        this.obtenerDatosCompletos();
+      },
+      error: (err) => {
+        alert("⚠️ " + (err.error?.error || "Error al eliminar."));
+      }
+    });
+  }
+
+  // ✨ NUEVA FUNCIÓN: ELIMINAR DOCUMENTO
+  eliminarDocumento(doc: any) {
+    if (!confirm(`¿Estás seguro de que deseas eliminar permanentemente "${doc.nombre_carpeta}"?`)) return;
+
+    const token = localStorage.getItem('token_medicloud');
+    const headers = new HttpHeaders().set('Authorization', `Bearer ${token}`);
+
+    this.http.delete(`https://medicloud-backend-tuug.onrender.com/api/documentos/${doc.id_documento}`, { headers }).subscribe({
+      next: (res: any) => {
+        alert("✅ " + res.mensaje);
+        this.obtenerDatosCompletos();
+      },
+      error: (err) => {
+        alert("❌ " + (err.error?.error || "Error al eliminar."));
       }
     });
   }

@@ -141,7 +141,6 @@ app.get('/api/mis-carpetas', verificarToken, (req, res) => {
   });
 });
 
-// ✨ --- NUEVA RUTA: CREAR CARPETA --- ✨
 app.post('/api/carpetas', verificarToken, (req, res) => {
   const { nombre } = req.body;
   const email = req.usuario.email || '';
@@ -149,14 +148,12 @@ app.post('/api/carpetas', verificarToken, (req, res) => {
 
   if (!nombre) return res.status(400).json({ error: 'El nombre de la carpeta es obligatorio.' });
 
-  // Buscamos el ID del cliente al que pertenece el usuario por su dominio
   db.query("SELECT id_cliente FROM cliente WHERE nombre_empresa LIKE ? LIMIT 1", [`%${dominio}%`], (err, results) => {
     if (err || results.length === 0) return res.status(400).json({ error: 'No se pudo identificar a qué empresa perteneces.' });
     
     const idCliente = results[0].id_cliente;
     const rutaLogica = `${dominio}/${nombre.toLowerCase().replace(/\s+/g, '_')}`;
 
-    // Insertamos la nueva carpeta
     db.query("INSERT INTO carpeta (id_cliente, nombre, ruta) VALUES (?, ?, ?)", [idCliente, nombre, rutaLogica], (errIns) => {
       if (errIns) return res.status(500).json({ error: 'Error en BD al crear la carpeta.' });
       
@@ -257,6 +254,50 @@ app.post('/api/carpetas/upload', verificarToken, upload.single('archivo'), async
       });
     });
   } catch (e) { res.status(500).json({ error: 'Fallo en Storage: ' + e.message }); }
+});
+
+// ✨ --- NUEVAS RUTAS: ELIMINAR --- ✨
+
+// 1. Eliminar Documento
+app.delete('/api/documentos/:id', verificarToken, (req, res) => {
+  const idDoc = req.params.id;
+  const ipCliente = req.headers['x-forwarded-for'] || req.ip;
+
+  // Primero borramos las versiones para que la BDD no de error de Clave Foránea
+  db.query("DELETE FROM version_documento WHERE id_documento = ?", [idDoc], (err) => {
+    if (err) return res.status(500).json({ error: 'Error al eliminar versiones de la BD.' });
+    
+    // Luego borramos el documento principal
+    db.query("DELETE FROM documento WHERE id_documento = ?", [idDoc], (errDel) => {
+      if (errDel) return res.status(500).json({ error: 'Error al eliminar el documento.' });
+      
+      registrarAuditoria(req.usuario.email, req.usuario.rol, `DOCUMENTO ELIMINADO ID: ${idDoc}`);
+      registrarLogForense(req.usuario.id, idDoc, ipCliente, 'DELETE_FILE', 'EXITOSO');
+      res.json({ mensaje: 'Documento eliminado de forma segura.' });
+    });
+  });
+});
+
+// 2. Eliminar Carpeta (con comprobación de seguridad)
+app.delete('/api/carpetas/:id', verificarToken, (req, res) => {
+  const idCarpeta = req.params.id;
+
+  // Comprobamos si tiene documentos dentro
+  db.query("SELECT COUNT(*) AS total FROM documento WHERE id_carpeta = ?", [idCarpeta], (err, results) => {
+    if (err) return res.status(500).json({ error: 'Error al verificar la carpeta.' });
+    
+    if (results[0].total > 0) {
+      return res.status(400).json({ error: 'No puedes borrar un directorio que contiene documentos. Vacíalo primero.' });
+    }
+
+    // Si está vacía, procedemos a borrarla
+    db.query("DELETE FROM carpeta WHERE id_carpeta = ?", [idCarpeta], (errDel) => {
+      if (errDel) return res.status(500).json({ error: 'Error al eliminar la carpeta.' });
+      
+      registrarAuditoria(req.usuario.email, req.usuario.rol, `CARPETA ELIMINADA ID: ${idCarpeta}`);
+      res.json({ mensaje: 'Directorio eliminado correctamente.' });
+    });
+  });
 });
 
 app.get('/api/admin/usuarios', verificarToken, (req, res) => {

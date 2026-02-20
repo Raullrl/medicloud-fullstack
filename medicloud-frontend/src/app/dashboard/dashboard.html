@@ -56,7 +56,12 @@
               <div class="card-details">
                 <p><strong>Propietario:</strong> {{ carpeta.cliente || 'Interno' }}</p>
               </div>
-              <button class="btn-abrir" style="background: #f59e0b; color: white; width: 100%;">Abrir Carpeta</button>
+              
+              <div style="display: flex; gap: 8px; margin-top: 15px;">
+                <button class="btn-abrir" style="background: #f59e0b; color: white; flex: 1;">Abrir</button>
+                <button (click)="eliminarCarpeta(carpeta, $event)" title="Eliminar Carpeta" style="background: #ef4444; color: white; border: none; border-radius: 6px; padding: 0 15px; cursor: pointer;">🗑️</button>
+              </div>
+
             </div>
           } @empty {
             <div class="empty-state"><p>No hay directorios creados para tu empresa.</p></div>
@@ -81,7 +86,12 @@
                 <p><strong>Tipo:</strong> Documento Cifrado</p>
                 <p><strong>Seguridad:</strong> <span [style.color]="doc.nivel_criticidad === 'CRÍTICO' ? '#dc2626' : '#2563eb'">{{ doc.nivel_criticidad }}</span></p>
               </div>
-              <button class="btn-abrir" (click)="abrirCarpeta(doc.ruta)">Ver Archivo</button>
+              
+              <div style="display: flex; gap: 8px; margin-top: 15px;">
+                <button class="btn-abrir" (click)="abrirCarpeta(doc.ruta)" style="flex: 1;">Ver Archivo</button>
+                <button (click)="eliminarDocumento(doc)" title="Eliminar Documento" style="background: #ef4444; color: white; border: none; border-radius: 6px; padding: 0 15px; cursor: pointer;">🗑️</button>
+              </div>
+
             </div>
           } @empty {
             <div class="empty-state">
