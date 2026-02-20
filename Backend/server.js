@@ -9,15 +9,12 @@ const rateLimit = require('express-rate-limit');
 
 const app = express();
 
-// 🛡️ Configuración para Render (Proxy)
 app.set('trust proxy', 1);
 
-// 🛡️ Seguridad de cabeceras
 app.use(helmet({
   crossOriginResourcePolicy: false,
 }));
 
-// --- CONFIGURACIÓN DE SEGURIDAD (CORS) ---
 app.use(cors({
   origin: '*', 
   methods: ['GET', 'POST', 'PUT', 'DELETE'],
@@ -26,14 +23,12 @@ app.use(cors({
 
 app.use(express.json());
 
-// 🛡️ Limitador de Fuerza Bruta
 const loginLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, 
   max: 5, 
   message: { error: '⛔ Demasiados intentos fallidos. Tu IP ha sido bloqueada temporalmente.' }
 });
 
-// --- CONFIGURACIÓN DE LA BASE DE DATOS (AIVEN) ---
 const db = mysql.createPool({
   host: process.env.DB_HOST,
   user: process.env.DB_USER,
@@ -50,7 +45,6 @@ const db = mysql.createPool({
 
 console.log("📡 Backend conectado a la base de datos de Aiven...");
 
-// --- RUTA DE ESTADO ---
 app.get('/api/estado', (req, res) => {
   db.query('SELECT 1', (err) => {
     if (err) return res.status(500).json({ error: 'Error de conexión' });
@@ -58,13 +52,9 @@ app.get('/api/estado', (req, res) => {
   });
 });
 
-// --- RUTA DE LOGIN (BUSQUEDA POR EMAIL) ---
 app.post('/api/login', loginLimiter, async (req, res) => {
   const { usuario, password } = req.body; 
-  
-  if (!usuario || !password) {
-    return res.status(400).json({ error: 'Faltan credenciales' });
-  }
+  if (!usuario || !password) return res.status(400).json({ error: 'Faltan credenciales' });
 
   const queryLogin = `
     SELECT u.*, ur.id_rol 
@@ -74,50 +64,28 @@ app.post('/api/login', loginLimiter, async (req, res) => {
   `;
 
   db.query(queryLogin, [usuario], async (err, results) => {
-    if (err) {
-      console.error('❌ Error en Login:', err);
-      return res.status(500).json({ error: 'Error en el servidor' });
-    }
-
-    if (results.length === 0) {
-      return res.status(401).json({ error: 'Email o contraseña incorrectos' });
-    }
+    if (err) return res.status(500).json({ error: 'Error en el servidor' });
+    if (results.length === 0) return res.status(401).json({ error: 'Email o contraseña incorrectos' });
 
     const userDB = results[0];
-
-    if (userDB.estado === 'Bloqueado') {
-      return res.status(403).json({ error: 'Tu cuenta ha sido bloqueada.' });
-    }
+    if (userDB.estado === 'Bloqueado') return res.status(403).json({ error: 'Tu cuenta ha sido bloqueada.' });
 
     const passwordValida = await bcrypt.compare(password, userDB.hash_contraseña);
-    if (!passwordValida) {
-      return res.status(401).json({ error: 'Email o contraseña incorrectos' });
-    }
+    if (!passwordValida) return res.status(401).json({ error: 'Email o contraseña incorrectos' });
 
     const token = jwt.sign(
-      { 
-        id: userDB.id_usuario, 
-        rol: userDB.id_rol, 
-        nombre: userDB.nombre_usuario,
-        email: userDB.email 
-      },
+      { id: userDB.id_usuario, rol: userDB.id_rol, nombre: userDB.nombre_usuario, email: userDB.email },
       process.env.JWT_SECRET,
-      { expiresIn: '2h' }
+      { expiresIn: '15m' } // ⏱️ Ajustado a 15m para coincidir con tu timeout de inactividad
     );
 
-    console.log(`✅ Login exitoso: ${userDB.email} (Rol: ${userDB.id_rol})`);
-    res.json({
-      mensaje: `¡Bienvenido, ${userDB.nombre_usuario}!`,
-      token: token
-    });
+    res.json({ mensaje: `¡Bienvenido, ${userDB.nombre_usuario}!`, token: token });
   });
 });
 
-// --- MIDDLEWARE DE VERIFICACIÓN DE TOKEN ---
 const verificarToken = (req, res, next) => {
   const cabeceraAuth = req.headers['authorization'];
   const token = cabeceraAuth && cabeceraAuth.split(' ')[1];
-
   if (!token) return res.status(401).json({ error: 'Acceso denegado' });
 
   jwt.verify(token, process.env.JWT_SECRET, (err, usuarioDecodificado) => {
@@ -127,11 +95,15 @@ const verificarToken = (req, res, next) => {
   });
 };
 
-// --- RUTA PROTEGIDA: CARPETAS (FILTRADO POR DOMINIO) ---
+// --- RUTA PROTEGIDA: CARPETAS (CON AUDITORÍA) ---
 app.get('/api/carpetas', verificarToken, (req, res) => {
   const email = req.usuario.email || '';
   const dominio = email.split('@')[1]?.split('.')[0] || '';
   
+  // ✨ AUDITORÍA: Registramos el acceso a la lista completa
+  const sqlLog = "INSERT INTO registro_auditoria (usuario_email, rol_id, accion_realizada) VALUES (?, ?, ?)";
+  db.query(sqlLog, [email, req.usuario.rol, `Acceso a bóveda - Dominio: ${dominio}`]);
+
   let querySQL = `
     SELECT c.id_carpeta, c.nombre AS nombre_carpeta, c.ruta, cl.nombre_empresa AS cliente
     FROM carpeta c
@@ -141,24 +113,27 @@ app.get('/api/carpetas', verificarToken, (req, res) => {
   if (req.usuario.rol !== 3 && req.usuario.rol !== 1) {
     querySQL += ` WHERE cl.nombre_empresa LIKE ?`;
     db.query(querySQL, [`%${dominio}%`], (err, results) => {
-      if (err) return res.status(500).json({ error: 'Error al filtrar bóveda' });
-      res.json({ mensaje: "Bóveda filtrada por dominio", carpetas: results });
+      if (err) return res.status(500).json({ error: 'Error al filtrar' });
+      res.json({ carpetas: results });
     });
   } else {
     db.query(querySQL, (err, results) => {
-      if (err) return res.status(500).json({ error: 'Error al leer bóveda' });
-      res.json({ mensaje: "Acceso total de administrador", carpetas: results });
+      if (err) return res.status(500).json({ error: 'Error al leer' });
+      res.json({ carpetas: results });
     });
   }
 });
 
-// ✨ --- RUTA NUEVA: BÚSQUEDA SEGURA CONTRA INYECCIÓN SQL (SQLi) --- ✨
+// --- RUTA BÚSQUEDA SEGURA (CON AUDITORÍA) ---
 app.get('/api/carpetas/buscar', verificarToken, (req, res) => {
   const termino = req.query.nombre || '';
   const email = req.usuario.email || '';
   const dominio = email.split('@')[1]?.split('.')[0] || '';
   
-  // CONSULTA PARAMETRIZADA: El signo '?' bloquea cualquier intento de Inyección SQL
+  // ✨ AUDITORÍA: Registramos qué palabra exacta ha buscado el usuario
+  const sqlLog = "INSERT INTO registro_auditoria (usuario_email, rol_id, accion_realizada) VALUES (?, ?, ?)";
+  db.query(sqlLog, [email, req.usuario.rol, `Búsqueda segura: "${termino}"`]);
+
   let querySQL = `
     SELECT c.id_carpeta, c.nombre AS nombre_carpeta, c.ruta, cl.nombre_empresa AS cliente
     FROM carpeta c
@@ -167,33 +142,28 @@ app.get('/api/carpetas/buscar', verificarToken, (req, res) => {
   `;
   const params = [`%${termino}%`];
 
-  // Si no es SysAdmin (3) ni Gerencia (1), aplicamos también el filtro de seguridad de su dominio
   if (req.usuario.rol !== 3 && req.usuario.rol !== 1) {
     querySQL += ` AND cl.nombre_empresa LIKE ?`;
     params.push(`%${dominio}%`);
   }
 
   db.query(querySQL, params, (err, results) => {
-    if (err) return res.status(500).json({ error: 'Error en la búsqueda segura' });
+    if (err) return res.status(500).json({ error: 'Error en búsqueda' });
     res.json({ carpetas: results });
   });
 });
 
-// --- RUTA PROTEGIDA: PANEL DE ADMINISTRADOR (SOLO SYSADMIN) ---
 app.get('/api/admin/usuarios', verificarToken, (req, res) => {
-  if (req.usuario.rol !== 3) {
-    return res.status(403).json({ error: 'Acceso denegado. Se requieren privilegios de Administrador Técnico (SysAdmin).' });
-  }
-
+  if (req.usuario.rol !== 3) return res.status(403).json({ error: 'Acceso denegado' });
+  
   const querySQL = `
     SELECT u.id_usuario, u.nombre_usuario, u.email, r.nombre_rol, u.estado 
     FROM usuario u
     LEFT JOIN usuario_rol ur ON u.id_usuario = ur.id_usuario
     LEFT JOIN rol r ON ur.id_rol = r.id_rol
   `;
-
   db.query(querySQL, (err, results) => {
-    if (err) return res.status(500).json({ error: 'Error del servidor al leer los usuarios' });
+    if (err) return res.status(500).json({ error: 'Error' });
     res.json({ usuarios: results });
   });
 });
