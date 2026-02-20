@@ -243,3 +243,123 @@
 
 .status-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background-color: #22c55e; margin-right: 8px; }
 .status-dot.blocked { background-color: #ef4444; }
+
+/* ==========================================================
+   ✨ NUEVOS ESTILOS PARA LA GESTIÓN DE USUARIOS (ALTA Y BLOQUEO) 
+   ========================================================== */
+
+/* Botón de Alta Empleado en el Header */
+.btn-alta {
+  background-color: #2563eb;
+  color: white;
+  border: none;
+  padding: 10px 18px;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+.btn-alta:hover { background-color: #1d4ed8; }
+
+/* Botones en la tabla de acciones */
+.btn-bloq {
+  background: #fee2e2;
+  color: #dc2626;
+  border: 1px solid #fecaca;
+  padding: 6px 14px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 700;
+  transition: all 0.2s;
+}
+.btn-bloq:hover { background: #fca5a5; }
+
+.btn-act {
+  background: #dcfce7;
+  color: #16a34a;
+  border: 1px solid #bbf7d0;
+  padding: 6px 14px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 700;
+  transition: all 0.2s;
+}
+.btn-act:hover { background: #86efac; }
+
+/* Overlay del Modal (Fondo oscuro) */
+.modal-overlay {
+  position: fixed;
+  top: 0; left: 0; width: 100%; height: 100%;
+  background: rgba(0, 0, 0, 0.75);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 9999;
+}
+
+/* Caja blanca del formulario */
+.modal-content {
+  background: white;
+  padding: 30px 40px;
+  border-radius: 12px;
+  width: 100%;
+  max-width: 450px;
+  text-align: left;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+}
+
+/* Campos del formulario */
+.form-group { margin-bottom: 20px; }
+.form-group label {
+  display: block;
+  font-size: 13px;
+  font-weight: 700;
+  color: #475569;
+  margin-bottom: 8px;
+}
+.form-group input, .form-group select {
+  width: 100%;
+  padding: 12px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  font-size: 14px;
+  color: #0f172a;
+  background-color: #f8fafc;
+}
+.form-group input:focus, .form-group select:focus {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
+}
+
+/* Botones dentro del Modal */
+.modal-actions {
+  display: flex;
+  gap: 15px;
+  margin-top: 30px;
+}
+.btn-cancel {
+  flex: 1;
+  padding: 12px;
+  background: #f1f5f9;
+  color: #475569;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 700;
+}
+.btn-cancel:hover { background: #e2e8f0; }
+
+.btn-save {
+  flex: 2;
+  padding: 12px;
+  background: #2563eb;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 700;
+}
+.btn-save:hover { background: #1d4ed8; }

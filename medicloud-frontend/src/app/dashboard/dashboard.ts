@@ -1,11 +1,12 @@
 import { Component, Output, EventEmitter, OnInit, ChangeDetectorRef } from '@angular/core';
 import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { CommonModule } from '@angular/common';
+import { FormsModule } from '@angular/forms'; // ✨ Añadido para los formularios
 
 @Component({
   selector: 'app-dashboard',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, FormsModule], // ✨ Añadido FormsModule aquí
   templateUrl: './dashboard.html',
   styleUrl: './dashboard.css'
 })
@@ -18,11 +19,14 @@ export class DashboardComponent implements OnInit {
   cargandoBoveda: boolean = true; 
 
   esAdmin: boolean = false;
-  // ✨ NUEVO: Variable para saber si el usuario puede ver todas las carpetas (SysAdmin o Gerencia)
   tieneAccesoTotal: boolean = false; 
   nombreUsuario: string = '';
   vistaActual: 'boveda' | 'admin' = 'boveda'; 
   listaUsuarios: any[] = []; 
+
+  // ✨ NUEVAS VARIABLES PARA EL MODAL DE ALTA
+  mostrarModalAlta: boolean = false;
+  nuevoUsuario = { nombre: '', email: '', password: '', id_rol: 4 };
 
   constructor(private http: HttpClient, private cdr: ChangeDetectorRef) {}
 
@@ -37,13 +41,8 @@ export class DashboardComponent implements OnInit {
       try {
         const payload = JSON.parse(atob(token.split('.')[1]));
         this.nombreUsuario = payload.nombre;
-        
-        // 🛡️ LÓGICA DE SEGURIDAD:
-        // SysAdmin (3) ve el botón de administración.
         this.esAdmin = (payload.rol === 3); 
-        // SysAdmin (3) y Gerencia (1) tienen acceso a todo el contenido de la bóveda.
         this.tieneAccesoTotal = (payload.rol === 3 || payload.rol === 1);
-        
       } catch (e) {
         console.error("Error al leer el token", e);
       }
@@ -58,10 +57,9 @@ export class DashboardComponent implements OnInit {
     this.cdr.detectChanges();
   }
 
-  // ✨ NUEVO: Función que conecta con el backend para buscar sin vulnerabilidad SQLi
   buscarCarpeta(termino: string) {
     if (!termino.trim()) {
-      this.obtenerCarpetas(); // Si el buscador está vacío, volvemos a cargar todo
+      this.obtenerCarpetas(); 
       return;
     }
 
@@ -133,5 +131,42 @@ export class DashboardComponent implements OnInit {
     } else {
       alert("No hay archivo disponible para esta carpeta.");
     }
+  }
+
+  // ✨ NUEVA FUNCIÓN: CAMBIAR ESTADO (BLOQUEAR/ACTIVAR)
+  toggleEstado(usuario: any) {
+    const nuevoEstado = usuario.estado === 'Bloqueado' ? 'Activa' : 'Bloqueado';
+    const token = localStorage.getItem('token_medicloud');
+    const headers = new HttpHeaders().set('Authorization', `Bearer ${token}`);
+
+    this.http.put(`https://medicloud-backend-tuug.onrender.com/api/admin/usuarios/${usuario.id_usuario}/estado`, 
+    { nuevoEstado }, { headers }).subscribe({
+      next: () => {
+        usuario.estado = nuevoEstado;
+        this.cdr.detectChanges();
+      },
+      error: () => alert("Error al modificar el estado. Revisa tus permisos.")
+    });
+  }
+
+  // ✨ NUEVA FUNCIÓN: ALTA DE USUARIO
+  crearUsuario() {
+    if (!this.nuevoUsuario.nombre || !this.nuevoUsuario.email || !this.nuevoUsuario.password) {
+      alert("Por favor, rellena todos los campos.");
+      return;
+    }
+
+    const token = localStorage.getItem('token_medicloud');
+    const headers = new HttpHeaders().set('Authorization', `Bearer ${token}`);
+
+    this.http.post('https://medicloud-backend-tuug.onrender.com/api/admin/usuarios', this.nuevoUsuario, { headers }).subscribe({
+      next: (res: any) => {
+        alert(res.mensaje);
+        this.mostrarModalAlta = false; // Cierra la ventana
+        this.obtenerUsuariosAdmin();   // Recarga la tabla
+        this.nuevoUsuario = { nombre: '', email: '', password: '', id_rol: 4 }; // Limpia el formulario
+      },
+      error: () => alert("Error al crear el usuario. El correo podría estar ya en uso.")
+    });
   }
 }

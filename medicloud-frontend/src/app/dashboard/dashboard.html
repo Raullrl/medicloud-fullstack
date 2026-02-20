@@ -1,10 +1,10 @@
 <div class="dashboard-header">
   <div class="header-content">
     <div class="brand">
-      <img src="/assets/logo-medicloud.jpg" alt="Logo MediCloud" class="header-logo">
+      <img src="assets/logo-medicloud.jpg" alt="Logo MediCloud" class="header-logo">
       <div class="header-text-container">
         <h1>Repositorio Documental Corporativo</h1>
-        <p class="success-msg">Verificado: {{ nombreUsuario | titlecase }} | Conexión al Repositorio Establecida</p>
+        <p class="success-msg">Verificado: {{ nombreUsuario | titlecase }} | {{ mensajeServidor }}</p>
       </div>
     </div>
 
@@ -59,12 +59,8 @@
             <div class="restricted-state">
               <div class="emoji-icon-large">🔒</div>
               <h2>Protocolo de Seguridad Activado</h2>
-              <p>
-                El perfil asignado no dispone de los permisos necesarios para la visualización global de expedientes según las políticas de la matriz MediCloud.
-              </p>
-              <p>
-                Por cumplimiento estricto del RGPD y el modelo de Mínimo Privilegio, la auditoría completa queda restringida a perfiles de Dirección y Administración de Sistemas.
-              </p>
+              <p>El perfil asignado no dispone de los permisos necesarios para la visualización global de expedientes.</p>
+              <p>Por cumplimiento estricto del RGPD, la auditoría completa queda restringida a perfiles de Dirección y Sistemas.</p>
             </div>
           }
         }
@@ -74,9 +70,12 @@
 
   @else {
     <div class="admin-panel">
-      <div class="admin-header">
-        <h2>Control de Accesos y Auditoría</h2>
-        <p>Monitorización en tiempo real de identidades autorizadas en la infraestructura.</p>
+      <div class="admin-header" style="display: flex; justify-content: space-between; align-items: center;">
+        <div>
+          <h2>Control de Accesos y Auditoría</h2>
+          <p>Monitorización en tiempo real de identidades autorizadas.</p>
+        </div>
+        <button class="btn-alta" (click)="mostrarModalAlta = true">+ Nuevo Empleado</button>
       </div>
 
       <div class="table-container">
@@ -88,7 +87,7 @@
               <th>Correo Electrónico</th>
               <th>Nivel de Privilegios</th>
               <th>Estado de Cuenta</th>
-            </tr>
+              <th>Gestión</th> </tr>
           </thead>
           <tbody>
             @for (usuario of listaUsuarios; track usuario.id_usuario) {
@@ -108,9 +107,16 @@
                   <span class="status-dot" [class.blocked]="usuario.estado === 'Bloqueado'"></span>
                   {{ usuario.estado || 'Activa' }}
                 </td>
+                <td>
+                  <button 
+                    [class]="usuario.estado === 'Bloqueado' ? 'btn-act' : 'btn-bloq'"
+                    (click)="toggleEstado(usuario)">
+                    {{ usuario.estado === 'Bloqueado' ? 'Desbloquear' : 'Bloquear' }}
+                  </button>
+                </td>
               </tr>
             } @empty {
-              <tr><td colspan="5" class="text-center">Recuperando registros del servidor...</td></tr>
+              <tr><td colspan="6" class="text-center">Recuperando registros del servidor...</td></tr>
             }
           </tbody>
         </table>
@@ -118,3 +124,41 @@
     </div>
   }
 </div>
+
+@if (mostrarModalAlta) {
+  <div class="modal-overlay">
+    <div class="modal-content">
+      <h3 style="margin-top: 0; margin-bottom: 20px;">Alta de Identidad</h3>
+      
+      <div class="form-group">
+        <label>Nombre Completo</label>
+        <input type="text" [(ngModel)]="nuevoUsuario.nombre" placeholder="Ej: Laura Gómez">
+      </div>
+      
+      <div class="form-group">
+        <label>Email Corporativo</label>
+        <input type="email" [(ngModel)]="nuevoUsuario.email" placeholder="usuario@medicloud.es">
+      </div>
+      
+      <div class="form-group">
+        <label>Contraseña Temporal</label>
+        <input type="password" [(ngModel)]="nuevoUsuario.password" placeholder="••••••••">
+      </div>
+      
+      <div class="form-group">
+        <label>Nivel de Privilegios</label>
+        <select [(ngModel)]="nuevoUsuario.id_rol">
+          <option [value]="3">SysAdmin</option>
+          <option [value]="1">Gerencia</option>
+          <option [value]="2">Soporte Técnico</option>
+          <option [value]="4">Técnico Administrativo</option>
+        </select>
+      </div>
+      
+      <div class="modal-actions">
+        <button class="btn-cancel" (click)="mostrarModalAlta = false">Cancelar</button>
+        <button class="btn-save" (click)="crearUsuario()">Guardar Empleado</button>
+      </div>
+    </div>
+  </div>
+}
