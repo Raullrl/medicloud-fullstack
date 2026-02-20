@@ -231,9 +231,6 @@ app.post('/api/carpetas/upload', verificarToken, upload.single('archivo'), async
     const { data, error } = await supabase.storage.from('historiales-medicos').upload(nombreUnico, archivo.buffer, { contentType: archivo.mimetype });
     if (error) throw error;
 
-    // ✨ CORRECCIÓN DE SEGURIDAD: Ya NO guardamos la URL pública completa. 
-    // Solo guardamos el 'nombreUnico' (la ruta interna del archivo).
-    
     const sqlDoc = "INSERT INTO documento (id_carpeta, nombre_archivo, tipo_documento, nivel_criticidad, estado_cifrado) VALUES (?, ?, ?, ?, 1)";
     const tipo = archivo.mimetype.split('/')[1].toUpperCase();
     
@@ -241,7 +238,6 @@ app.post('/api/carpetas/upload', verificarToken, upload.single('archivo'), async
       if (errD) return res.status(500).json({ error: 'Error al registrar documento en Aiven' });
       
       const sqlVer = "INSERT INTO version_documento (id_documento, ruta_cifrada, hash_integridad) VALUES (?, ?, ?)";
-      // Pasamos 'nombreUnico' en lugar de 'urlPublica'
       db.query(sqlVer, [resD.insertId, nombreUnico, 'SHA256-BY-SYSTEM'], (errV) => {
         if (errV) return res.status(500).json({ error: 'Error al registrar versión' });
 
@@ -253,52 +249,64 @@ app.post('/api/carpetas/upload', verificarToken, upload.single('archivo'), async
   } catch (e) { res.status(500).json({ error: 'Fallo en Storage: ' + e.message }); }
 });
 
-// ✨ NUEVA RUTA DE SEGURIDAD: Generador de URLs Firmadas (Autodestructibles)
 app.get('/api/documentos/:id/url', verificarToken, (req, res) => {
   const idDoc = req.params.id;
   const ipCliente = req.headers['x-forwarded-for'] || req.ip;
 
-  // 1. Buscamos la ruta del archivo en la BD
   db.query("SELECT ruta_cifrada FROM version_documento WHERE id_documento = ?", [idDoc], async (err, results) => {
     if (err || results.length === 0) return res.status(404).json({ error: 'Documento no encontrado en la bóveda.' });
 
     let ruta_interna = results[0].ruta_cifrada;
 
-    // 2. Magia para la compatibilidad: Si el archivo es antiguo y tiene la URL pública entera guardada, 
-    // le extraemos solo el final (el nombre del archivo).
     if (ruta_interna.includes('/historiales-medicos/')) {
         ruta_interna = ruta_interna.split('/historiales-medicos/')[1];
     }
 
-    // 3. Hablamos con Supabase para generar la URL Firmada. Expira en 60 segundos.
     const { data, error } = await supabase.storage.from('historiales-medicos').createSignedUrl(ruta_interna, 60);
 
     if (error) return res.status(500).json({ error: 'Error al generar enlace seguro de acceso temporal.' });
 
-    // 4. Auditamos quién ha pedido ver este documento
     registrarAuditoria(req.usuario.email, req.usuario.rol, `LECTURA DE DOCUMENTO ID: ${idDoc} (URL Segura)`);
     registrarLogForense(req.usuario.id, idDoc, ipCliente, 'READ_FILE_SECURE', 'EXITOSO');
 
-    // 5. Devolvemos el enlace temporal al frontend
     res.json({ url: data.signedUrl });
   });
 });
 
-app.delete('/api/documentos/:id', verificarToken, (req, res) => {
+// ✨ LA RUTA DE BORRADO ACTUALIZADA (Eliminación Física en Supabase + Lógica en MySQL)
+app.delete('/api/documentos/:id', verificarToken, async (req, res) => {
   const idDoc = req.params.id;
   const ipCliente = req.headers['x-forwarded-for'] || req.ip;
 
-  db.query("UPDATE log_acceso SET id_documento = NULL WHERE id_documento = ?", [idDoc], (errLog) => {
-    if (errLog) return res.status(500).json({ error: 'Error al actualizar auditoría forense.' });
+  // PASO 1: Obtener el nombre del archivo en Supabase antes de borrarlo de la BD
+  db.query("SELECT ruta_cifrada FROM version_documento WHERE id_documento = ?", [idDoc], async (err, results) => {
+    if (err || results.length === 0) return res.status(404).json({ error: 'Documento no encontrado.' });
+    
+    let nombreArchivo = results[0].ruta_cifrada;
+    
+    // Si es un archivo antiguo con URL completa, nos quedamos solo con el nombre
+    if (nombreArchivo.includes('/historiales-medicos/')) {
+        nombreArchivo = nombreArchivo.split('/historiales-medicos/')[1];
+    }
 
-    db.query("DELETE FROM version_documento WHERE id_documento = ?", [idDoc], (errVer) => {
-      if (errVer) return res.status(500).json({ error: 'Error al eliminar versiones de la BD.' });
-      
-      db.query("DELETE FROM documento WHERE id_documento = ?", [idDoc], (errDel) => {
-        if (errDel) return res.status(500).json({ error: 'Error al eliminar el documento principal.' });
-        registrarAuditoria(req.usuario.email, req.usuario.rol, `DOCUMENTO ELIMINADO ID: ${idDoc}`);
-        registrarLogForense(req.usuario.id, null, ipCliente, 'DELETE_FILE', 'EXITOSO'); 
-        res.json({ mensaje: 'Documento eliminado de forma segura.' });
+    // PASO 2: Ordenar a Supabase que DESTRUYA el archivo físico en la nube 💥
+    const { error: errorSupabase } = await supabase.storage.from('historiales-medicos').remove([nombreArchivo]);
+    if (errorSupabase) console.error("⚠️ Aviso: No se pudo borrar el archivo físico de Supabase:", errorSupabase);
+
+    // PASO 3: Proceder con el borrado limpio en MySQL
+    db.query("UPDATE log_acceso SET id_documento = NULL WHERE id_documento = ?", [idDoc], (errLog) => {
+      if (errLog) return res.status(500).json({ error: 'Error al actualizar auditoría forense.' });
+
+      db.query("DELETE FROM version_documento WHERE id_documento = ?", [idDoc], (errVer) => {
+        if (errVer) return res.status(500).json({ error: 'Error al eliminar versiones de la BD.' });
+        
+        db.query("DELETE FROM documento WHERE id_documento = ?", [idDoc], (errDel) => {
+          if (errDel) return res.status(500).json({ error: 'Error al eliminar el documento principal.' });
+          
+          registrarAuditoria(req.usuario.email, req.usuario.rol, `DOC. Y ARCHIVO FÍSICO ELIMINADO ID: ${idDoc}`);
+          registrarLogForense(req.usuario.id, null, ipCliente, 'DELETE_FILE', 'EXITOSO'); 
+          res.json({ mensaje: 'Expediente y archivo en la nube eliminados de forma permanente.' });
+        });
       });
     });
   });
