@@ -1,43 +1,214 @@
+:host {
+  display: block;
+  font-family: Inter, "SF Pro Display", "Segoe UI", Roboto, sans-serif;
+  color: #0f172a;
+}
+
+/* ========== Escena general (Ingravidez) ========== */
+.login-shell {
+  position: relative;
+  min-height: 100vh;
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 15% 20%, rgba(59, 130, 246, 0.08), transparent 40%),
+    radial-gradient(circle at 85% 80%, rgba(16, 185, 129, 0.08), transparent 45%),
+    linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+}
+
+.login-bg-orb {
+  position: absolute;
+  border-radius: 999px;
+  filter: blur(6px);
+  pointer-events: none;
+  opacity: 0.7;
+}
+
+.orb-1 {
+  width: 260px;
+  height: 260px;
+  top: 8%;
+  left: -60px;
+  background: radial-gradient(circle, rgba(59, 130, 246, 0.16), rgba(59, 130, 246, 0));
+}
+
+.orb-2 {
+  width: 300px;
+  height: 300px;
+  bottom: -80px;
+  right: -50px;
+  background: radial-gradient(circle, rgba(16, 185, 129, 0.14), rgba(16, 185, 129, 0));
+}
+
+/* ========== Layout ========== */
 .login-container {
-    background: radial-gradient(circle at top right, #1e293b, #020617);
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 32px;
+  position: relative;
+  z-index: 1;
 }
 
+/* ========== Tarjeta flotante ========== */
 .login-box {
-    background: rgba(255, 255, 255, 0.03);
-    backdrop-filter: blur(15px);
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    padding: 60px 50px;
-    border-radius: 30px;
-    box-shadow: 0 40px 100px rgba(0,0,0,0.8);
+  width: 100%;
+  max-width: 460px;
+  border-radius: 28px;
+  background: rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  box-shadow:
+    0 20px 60px -15px rgba(15, 23, 42, 0.08),
+    0 10px 20px -10px rgba(15, 23, 42, 0.05),
+    0 1px 0 rgba(255, 255, 255, 0.8) inset;
+  transition: transform 0.25s ease, box-shadow 0.25s ease;
 }
 
+.login-box:hover {
+  transform: translateY(-3px);
+  box-shadow:
+    0 28px 70px -20px rgba(15, 23, 42, 0.08),
+    0 12px 24px -12px rgba(15, 23, 42, 0.05),
+    0 1px 0 rgba(255, 255, 255, 0.85) inset;
+}
+
+.login-box-inner {
+  padding: 40px 36px 34px;
+}
+
+/* ========== Branding ========== */
 .login-logo {
-    width: 180px;
-    filter: drop-shadow(0 0 20px rgba(37, 99, 235, 0.2));
+  width: 160px;
+  height: auto;
+  display: block;
+  margin: 0 auto 20px auto;
+  border-radius: 14px;
+}
+
+.login-headline {
+  text-align: center;
+  margin-bottom: 24px;
+}
+
+.login-headline h1 {
+  margin: 0;
+  font-size: 24px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: #0f172a;
+}
+
+.login-headline p {
+  margin: 8px 0 0;
+  font-size: 14px;
+  color: #64748b;
+}
+
+/* ========== Inputs flotantes ========== */
+.input-group {
+  margin-bottom: 18px;
+  text-align: left;
 }
 
 .input-group label {
-    text-transform: uppercase;
-    letter-spacing: 1px;
-    font-size: 11px;
-    color: #94a3b8;
+  display: block;
+  margin-bottom: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #334155;
+  letter-spacing: 0.01em;
 }
 
-input {
-    background: rgba(0, 0, 0, 0.2);
-    border: 1px solid #334155;
-    padding: 15px;
-    font-weight: 300;
+.input-group input {
+  width: 100%;
+  padding: 14px 16px;
+  border: none; /* Regla de oro visual */
+  background: #ffffff;
+  color: #0f172a;
+  border-radius: 14px;
+  font-size: 15px;
+  box-shadow:
+    0 10px 24px -18px rgba(15, 23, 42, 0.22),
+    0 1px 0 rgba(255, 255, 255, 0.95) inset;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
-input:focus {
-    background: rgba(37, 99, 235, 0.05);
-    border-color: var(--primary);
+.input-group input::placeholder {
+  color: #94a3b8;
 }
 
+.input-group input:hover {
+  transform: translateY(-1px);
+  box-shadow:
+    0 16px 30px -18px rgba(15, 23, 42, 0.20),
+    0 1px 0 rgba(255, 255, 255, 0.95) inset;
+}
+
+.input-group input:focus {
+  outline: none;
+  transform: translateY(-1px);
+  box-shadow:
+    0 18px 34px -18px rgba(59, 130, 246, 0.22),
+    0 0 0 3px rgba(59, 130, 246, 0.12);
+}
+
+/* ========== CTA principal ========== */
 button {
-    background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
-    text-transform: uppercase;
-    letter-spacing: 1px;
-    box-shadow: 0 10px 20px rgba(37, 99, 235, 0.2);
+  width: 100%;
+  margin-top: 8px;
+  padding: 14px 16px;
+  border: none;
+  border-radius: 14px;
+  background: linear-gradient(135deg, #2563eb, #3b82f6);
+  color: #ffffff;
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  cursor: pointer;
+  box-shadow:
+    0 18px 30px -16px rgba(37, 99, 235, 0.45),
+    0 8px 16px -10px rgba(37, 99, 235, 0.28);
+  transition: transform 0.2s ease, box-shadow 0.2s ease, opacity 0.2s ease;
+}
+
+button:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow:
+    0 22px 34px -16px rgba(37, 99, 235, 0.40),
+    0 10px 18px -12px rgba(37, 99, 235, 0.24);
+}
+
+button:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.65;
+  background: linear-gradient(135deg, #94a3b8, #cbd5e1);
+  box-shadow:
+    0 10px 20px -15px rgba(15, 23, 42, 0.18);
+}
+
+button.loading {
+  position: relative;
+}
+
+/* ========== Responsive ========== */
+@media (max-width: 520px) {
+  .login-container {
+    padding: 18px;
+  }
+
+  .login-box-inner {
+    padding: 28px 20px 22px;
+  }
+
+  .login-logo {
+    width: 140px;
+  }
+
+  .login-headline h1 {
+    font-size: 21px;
+  }
 }

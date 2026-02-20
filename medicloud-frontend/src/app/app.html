@@ -1,25 +1,36 @@
 @if (!sesionIniciada) {
-  <div class="login-container">
-    <div class="login-box">
-      <img src="/assets/logo-medicloud.jpg" alt="Logo MediCloud" class="login-logo">
-      
-      <div class="input-group">
-        <label>Email Corporativo</label>
-        <input 
-          type="email" 
-          placeholder="ejemplo@medicloud.es" 
-          [(ngModel)]="usuario">
+  <div class="login-shell">
+    <div class="login-bg-orb orb-1"></div>
+    <div class="login-bg-orb orb-2"></div>
+
+    <div class="login-container">
+      <div class="login-box">
+        <div class="login-box-inner">
+          <img src="/assets/logo-medicloud.jpg" alt="Logo MediCloud" class="login-logo">
+
+          <div class="login-headline">
+            <h1>Acceso Seguro</h1>
+            <p>Plataforma documental médica corporativa</p>
+          </div>
+
+          <div class="input-group">
+            <label>Email Corporativo</label>
+            <input
+              type="email"
+              placeholder="ejemplo@medicloud.es"
+              [(ngModel)]="usuario">
+          </div>
+
+          <div class="input-group">
+            <label>Contraseña Segura</label>
+            <input type="password" placeholder="••••••••" [(ngModel)]="password">
+          </div>
+
+          <button (click)="iniciarSesion()" [disabled]="cargando" [class.loading]="cargando">
+            {{ cargando ? 'Autenticando...' : 'Acceso Autorizado' }}
+          </button>
+        </div>
       </div>
-
-      <div class="input-group">
-        <label>Contraseña Segura</label>
-        <input type="password" placeholder="••••••••" [(ngModel)]="password">
-      </div>
-
-      <button (click)="iniciarSesion()" [disabled]="cargando" [class.loading]="cargando">
-        {{ cargando ? 'Autenticando...' : 'Acceso Autorizado' }}
-      </button>
-
     </div>
   </div>
 } @else {
