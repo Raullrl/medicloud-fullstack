@@ -18,9 +18,12 @@
 }
 
 .login-logo {
-    width: 250px; /* Logo más grande para que destaque */
-    height: auto;
-    margin-bottom: 30px;
+    width: 100%;       /* Ocupa el ancho disponible... */
+    max-width: 280px;  /* ...pero nunca más de 280px */
+    height: auto;      /* Mantiene la proporción perfecta */
+    margin: 0 auto 20px auto;
+    display: block;
+    filter: drop-shadow(0 4px 8px rgba(0,0,0,0.3)); /* Le da profundidad */
 }
 
 .input-group {

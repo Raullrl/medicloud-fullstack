@@ -23,8 +23,13 @@
 }
 
 .header-logo {
-    width: 140px; /* Ajuste para logo horizontal */
+    width: 120px;      /* Tamaño ideal para barra de navegación */
     height: auto;
+    transition: transform 0.3s ease;
+}
+
+.header-logo:hover {
+    transform: scale(1.05); /* Efecto sutil al pasar el ratón */
 }
 
 .header-text-container h1 {
