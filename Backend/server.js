@@ -29,6 +29,12 @@ app.use(cors({
 
 app.use(express.json());
 
+// ✨ --- RUTA DE OXÍGENO PARA RENDER (Health Check) --- ✨
+// Esta ruta le dice a Render: "Estoy vivo, no me cortes la conexión"
+app.get('/', (req, res) => {
+  res.status(200).send('🚀 MediCloud API is online and secure.');
+});
+
 // 🛡️ Limitador de Fuerza Bruta
 const loginLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, 
@@ -232,7 +238,7 @@ app.post('/api/carpetas/upload', verificarToken, upload.single('archivo'), async
   } catch (e) { res.status(500).json({ error: 'Fallo en Storage: ' + e.message }); }
 });
 
-// --- RUTAS ADMIN (Tus originales completas) ---
+// --- RUTAS ADMIN ---
 app.get('/api/admin/usuarios', verificarToken, (req, res) => {
   const ipCliente = req.headers['x-forwarded-for'] || req.ip;
   if (req.usuario.rol !== 3) {
@@ -271,5 +277,8 @@ app.get('/api/crear-hash/:clave', async (req, res) => {
   res.json({ hash_generated: hash });
 });
 
+// ✨ --- CONFIGURACIÓN DE PUERTO PARA CLOUD --- ✨
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => console.log(`🚀 Servidor backend MediCloud ejecutándose en el puerto ${PORT}`));
+app.listen(PORT, '0.0.0.0', () => {
+  console.log(`🚀 Servidor backend MediCloud ejecutándose en el puerto ${PORT}`);
+});
