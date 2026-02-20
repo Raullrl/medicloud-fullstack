@@ -20,11 +20,10 @@ export class DashboardComponent implements OnInit {
   tieneAccesoTotal: boolean = false; 
   nombreUsuario: string = '';
   vistaActual: 'boveda' | 'admin' = 'boveda'; 
-  subVistaAdmin: 'usuarios' | 'auditoria' = 'usuarios'; 
 
-  // ✨ NAVEGACIÓN JERÁRQUICA
+  // ✨ NAVEGACIÓN JERÁRQUICA Y DOMINIOS
   clienteSeleccionadoBoveda: string | null = null;
-  clienteSeleccionadoAdmin: string | null = null;
+  dominioSeleccionadoAdmin: string | null = null;
   
   listaUsuarios: any[] = []; 
   logsAuditoria: any[] = []; 
@@ -53,15 +52,18 @@ export class DashboardComponent implements OnInit {
     this.obtenerDatosCompletos(); 
   }
 
-  // ✨ GETTERS PARA FILTRADO DINÁMICO
+  // ✨ GETTER PARA LA BÓVEDA
   get clientesUnicosBoveda() {
     const nombres = this.misCarpetas.map(c => c.cliente || 'Servicios Centrales');
     return [...new Set(nombres)];
   }
 
-  get clientesUnicosAdmin() {
-    const nombres = this.listaUsuarios.map(u => u.nombre_empresa || 'Identidades Internas');
-    return [...new Set(nombres)];
+  // ✨ GETTER PARA EL ADMIN (DOMINIOS INTELIGENTES)
+  get dominiosDetectados() {
+    const dominios = this.listaUsuarios.map(u => u.email.split('@')[1]);
+    const unicos = [...new Set(dominios)];
+    // Ordenar para que 'medicloud.es' salga siempre el primero
+    return unicos.sort((a, b) => a === 'medicloud.es' ? -1 : 1);
   }
 
   // ✨ MÉTODOS DE NAVEGACIÓN
@@ -76,13 +78,13 @@ export class DashboardComponent implements OnInit {
     this.cdr.detectChanges();
   }
 
-  seleccionarClienteAdmin(cliente: string) {
-    this.clienteSeleccionadoAdmin = cliente;
+  seleccionarDominioAdmin(dominio: string) {
+    this.dominioSeleccionadoAdmin = dominio;
     this.cdr.detectChanges();
   }
 
-  volverAClientesAdmin() {
-    this.clienteSeleccionadoAdmin = null;
+  volverADominiosAdmin() {
+    this.dominioSeleccionadoAdmin = null;
     this.cdr.detectChanges();
   }
 
@@ -115,11 +117,6 @@ export class DashboardComponent implements OnInit {
       this.obtenerUsuariosAdmin();
       this.obtenerLogsAuditoria(); 
     }
-    this.cdr.detectChanges();
-  }
-
-  cambiarSubVistaAdmin(subvista: 'usuarios' | 'auditoria') {
-    this.subVistaAdmin = subvista;
     this.cdr.detectChanges();
   }
 

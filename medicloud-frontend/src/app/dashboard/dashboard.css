@@ -510,21 +510,6 @@ select {
   font-size: 13px;
 }
 
-.admin-tabs-wrap {
-  background: rgba(248, 250, 252, 0.9) !important;
-  border-radius: 14px !important;
-  box-shadow: inset 0 0 0 1px rgba(148, 163, 184, 0.08);
-  padding: 4px !important;
-}
-
-.admin-tab-btn {
-  border-radius: 10px !important;
-  transition: transform 0.18s ease, box-shadow 0.18s ease !important;
-}
-.admin-tab-btn:hover {
-  transform: translateY(-1px);
-}
-
 /* ========== Tabla moderna (sin bordes duros) ========== */
 .table-container {
   overflow-x: auto;
@@ -590,19 +575,6 @@ select {
   text-align: center;
 }
 
-/* Tabla auditoría (mantiene look forense, pero clara) */
-.audit-table thead tr {
-  background: transparent !important;
-}
-
-.audit-table .audit-chip {
-  background: #f8fafc !important;
-  color: #334155;
-  border-radius: 999px !important;
-  padding: 4px 10px !important;
-  box-shadow: inset 0 0 0 1px rgba(148, 163, 184, 0.14);
-}
-
 /* ========== Badges de roles ========== */
 .badge {
   display: inline-flex;
@@ -615,23 +587,6 @@ select {
   background: #f8fafc;
   color: #475569;
   box-shadow: inset 0 0 0 1px rgba(148, 163, 184, 0.14);
-}
-
-/* Si luego quieres mapear roles por clase, ya está preparado */
-.badge-sysadmin {
-  background: #fff1f2;
-  color: #dc2626;
-  box-shadow: inset 0 0 0 1px rgba(239, 68, 68, 0.18);
-}
-.badge-gerencia {
-  background: #eff6ff;
-  color: #2563eb;
-  box-shadow: inset 0 0 0 1px rgba(59, 130, 246, 0.18);
-}
-.badge-tecnico {
-  background: #fff7ed;
-  color: #ea580c;
-  box-shadow: inset 0 0 0 1px rgba(245, 158, 11, 0.18);
 }
 
 /* ========== Estado usuario ========== */
@@ -731,7 +686,7 @@ select {
 .form-group select {
   width: 100%;
   padding: 12px 13px;
-  border: none; /* sin borde sólido */
+  border: none;
   border-radius: 12px;
   font-size: 14px;
   color: #0f172a;
@@ -829,76 +784,7 @@ input[type="file"]::file-selector-button:hover {
   transform: translateY(-1px);
 }
 
-/* ========== Responsive ========== */
-@media (max-width: 1024px) {
-  .dashboard-main {
-    padding: 24px 18px 34px;
-  }
-
-  .header-content {
-    padding: 10px;
-  }
-
-  .header-logo {
-    width: 86px;
-  }
-
-  .header-text-container h1 {
-    font-size: 16px;
-  }
-
-  .carpetas-grid {
-    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
-  }
-
-  .modern-table th,
-  .modern-table td {
-    padding-left: 12px;
-    padding-right: 12px;
-  }
-}
-
-@media (max-width: 640px) {
-  .dashboard-header {
-    padding: 10px 12px;
-  }
-
-  .brand {
-    align-items: flex-start;
-  }
-
-  .header-actions {
-    width: 100%;
-  }
-
-  .header-actions button {
-    flex: 1;
-    justify-content: center;
-  }
-
-  .search-container.toolbar-floating {
-    padding: 10px;
-  }
-
-  .modal-content {
-    padding: 22px 18px 18px;
-    border-radius: 16px;
-  }
-
-  .modal-actions {
-    flex-direction: column;
-  }
-
-  .btn-save,
-  .btn-cancel {
-    flex: none;
-    width: 100%;
-  }
-}
-
-/* ... (Todo tu CSS anterior se mantiene) ... */
-
-/* ✨ NUEVOS ESTILOS PARA LA NAVEGACIÓN JERÁRQUICA */
+/* ========== NAVEGACIÓN JERÁRQUICA ========== */
 
 .client-card {
   cursor: pointer;
@@ -912,8 +798,19 @@ input[type="file"]::file-selector-button:hover {
   box-shadow: 0 40px 80px -15px rgba(0,0,0,0.08);
 }
 
+/* ✨ ESTILO ESPECIAL PARA EMPLEADOS (DOMINIO INTERNO) */
+.client-card.is-internal {
+  background: linear-gradient(135deg, #ffffff 0%, #eff6ff 100%) !important;
+  border-top: 5px solid #2563eb !important;
+  box-shadow: 0 20px 40px rgba(37, 99, 235, 0.08) !important;
+}
+.client-card.is-internal h3 {
+  color: #2563eb;
+  font-weight: 800;
+}
+
 .client-card h3 {
-  font-size: 20px;
+  font-size: 18px;
   color: #1e40af;
   margin-top: 10px;
 }
@@ -955,15 +852,6 @@ input[type="file"]::file-selector-button:hover {
   color: #2563eb !important;
 }
 
-.section-title {
-  font-size: 22px;
-  font-weight: 800;
-  margin-bottom: 25px;
-  color: #0f172a;
-  letter-spacing: -0.02em;
-}
-
-/* Mejora para la tabla Admin */
 .modern-table td small {
   color: #94a3b8;
   display: block;
@@ -976,7 +864,6 @@ input[type="file"]::file-selector-button:hover {
   justify-content: flex-end;
 }
 
-/* Animación de entrada para las tarjetas */
 @keyframes fadeInUp {
   from { opacity: 0; transform: translateY(20px); }
   to { opacity: 1; transform: translateY(0); }
@@ -984,4 +871,25 @@ input[type="file"]::file-selector-button:hover {
 
 .carpeta-card {
   animation: fadeInUp 0.4s ease forwards;
+}
+
+/* ========== Responsive ========== */
+@media (max-width: 1024px) {
+  .dashboard-main { padding: 24px 18px 34px; }
+  .header-content { padding: 10px; }
+  .header-logo { width: 86px; }
+  .header-text-container h1 { font-size: 16px; }
+  .carpetas-grid { grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); }
+  .modern-table th, .modern-table td { padding-left: 12px; padding-right: 12px; }
+}
+
+@media (max-width: 640px) {
+  .dashboard-header { padding: 10px 12px; }
+  .brand { align-items: flex-start; }
+  .header-actions { width: 100%; }
+  .header-actions button { flex: 1; justify-content: center; }
+  .search-container.toolbar-floating { padding: 10px; }
+  .modal-content { padding: 22px 18px 18px; border-radius: 16px; }
+  .modal-actions { flex-direction: column; }
+  .btn-save, .btn-cancel { flex: none; width: 100%; }
 }
