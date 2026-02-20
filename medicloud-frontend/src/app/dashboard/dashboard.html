@@ -31,7 +31,7 @@
         (input)="buscarCarpeta($any($event.target).value)"
         style="flex: 1; max-width: 600px;">
       
-      @if (!esAdmin) {
+      @if (!tieneAccesoTotal) {
         @if (!carpetaActual) {
           <button class="btn-alta" (click)="mostrarModalCarpeta = true" style="background: #f59e0b; border-color: #f59e0b;">+ Nueva Carpeta</button>
         }
@@ -47,9 +47,7 @@
     } 
     @else {
       @if (!carpetaActual) {
-        <h2 style="margin-left: 20px; color: #1e293b;">
-          Directorios Disponibles {{ esAdmin ? '(Modo Solo Lectura)' : '' }}
-        </h2>
+        <h2 style="margin-left: 20px; color: #1e293b;">Directorios Disponibles</h2>
         
         <div class="carpetas-grid">
           @for (carpeta of misCarpetas; track carpeta.id_carpeta) {
@@ -62,7 +60,7 @@
               <div style="display: flex; gap: 8px; margin-top: 15px;">
                 <button class="btn-abrir" style="background: #f59e0b; color: white; flex: 1;">Abrir</button>
                 
-                @if (!esAdmin) {
+                @if (!tieneAccesoTotal) {
                   <button (click)="eliminarCarpeta(carpeta, $event)" title="Eliminar Carpeta" style="background: #ef4444; color: white; border: none; border-radius: 6px; padding: 0 15px; cursor: pointer;">🗑️</button>
                 }
               </div>
@@ -77,7 +75,7 @@
         <div style="margin: 0 20px 20px 20px; display: flex; align-items: center; gap: 15px; background: white; padding: 15px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
           <button class="btn-cancel" (click)="volverACarpetas()" style="margin: 0; background: #e2e8f0; color: #475569; border: none; padding: 8px 15px; border-radius: 6px; cursor:pointer;">⬅ Volver</button>
           <h2 style="margin: 0; color: #1e293b; display: flex; align-items: center; gap: 10px;">
-            📁 {{ carpetaActual.nombre }} {{ esAdmin ? '(Modo Solo Lectura)' : '' }}
+            📁 {{ carpetaActual.nombre }}
           </h2>
         </div>
 
@@ -93,7 +91,7 @@
               <div style="display: flex; gap: 8px; margin-top: 15px;">
                 <button class="btn-abrir" (click)="abrirCarpeta(doc.ruta)" style="flex: 1;">Ver Archivo</button>
                 
-                @if (!esAdmin) {
+                @if (!tieneAccesoTotal) {
                   <button (click)="eliminarDocumento(doc)" title="Eliminar Documento" style="background: #ef4444; color: white; border: none; border-radius: 6px; padding: 0 15px; cursor: pointer;">🗑️</button>
                 }
               </div>
