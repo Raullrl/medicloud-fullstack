@@ -31,6 +31,10 @@
         (input)="buscarCarpeta($any($event.target).value)"
         style="flex: 1; max-width: 600px;">
       
+      @if (!carpetaActual) {
+        <button class="btn-alta" (click)="mostrarModalCarpeta = true" style="background: #f59e0b; border-color: #f59e0b;">+ Nueva Carpeta</button>
+      }
+
       <button class="btn-alta" (click)="abrirModalSubida()">+ Subir Documento</button>
     </div>
 
@@ -60,6 +64,7 @@
         </div>
 
       } @else {
+        
         <div style="margin: 0 20px 20px 20px; display: flex; align-items: center; gap: 15px; background: white; padding: 15px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
           <button class="btn-cancel" (click)="volverACarpetas()" style="margin: 0; background: #e2e8f0; color: #475569; border: none; padding: 8px 15px; border-radius: 6px; cursor:pointer;">⬅ Volver</button>
           <h2 style="margin: 0; color: #1e293b; display: flex; align-items: center; gap: 10px;">
@@ -133,6 +138,26 @@
     </div>
   }
 </div>
+
+@if (mostrarModalCarpeta) {
+  <div class="modal-overlay">
+    <div class="modal-content" style="max-width: 400px;">
+      <h3 style="margin-top: 0; margin-bottom: 20px;">Crear Nuevo Directorio</h3>
+      
+      <div class="form-group">
+        <label>Nombre de la Carpeta</label>
+        <input type="text" [(ngModel)]="nuevaCarpetaNombre" placeholder="Ej: Facturas 2026">
+      </div>
+      
+      <div class="modal-actions">
+        <button class="btn-cancel" (click)="mostrarModalCarpeta = false" [disabled]="creandoCarpeta">Cancelar</button>
+        <button class="btn-save" (click)="crearCarpeta()" [disabled]="creandoCarpeta">
+          {{ creandoCarpeta ? 'Creando...' : 'Crear Carpeta' }}
+        </button>
+      </div>
+    </div>
+  </div>
+}
 
 @if (mostrarModalUpload) {
   <div class="modal-overlay">

@@ -22,11 +22,10 @@ export class DashboardComponent implements OnInit {
   vistaActual: 'boveda' | 'admin' = 'boveda'; 
   listaUsuarios: any[] = []; 
 
-  // ✨ VARIABLES DE NAVEGACIÓN DE CARPETAS
-  misCarpetas: any[] = []; // Directorios físicos
-  carpetas: any[] = []; // Todos los documentos de la BD
-  carpetaActual: any = null; // null = ver carpetas | objeto = ver documentos de esa carpeta
-  documentosDeCarpeta: any[] = []; // Los documentos filtrados para la vista actual
+  misCarpetas: any[] = []; 
+  carpetas: any[] = []; 
+  carpetaActual: any = null; 
+  documentosDeCarpeta: any[] = []; 
 
   mostrarModalAlta: boolean = false;
   nuevoUsuario = { nombre: '', email: '', password: '', id_rol: 4 };
@@ -36,11 +35,16 @@ export class DashboardComponent implements OnInit {
   archivoSeleccionado: File | null = null;
   nuevoDoc = { nombre: '', criticidad: 'NORMAL', id_carpeta: '' }; 
 
+  // ✨ VARIABLES NUEVAS PARA CREAR CARPETAS
+  mostrarModalCarpeta: boolean = false;
+  nuevaCarpetaNombre: string = '';
+  creandoCarpeta: boolean = false;
+
   constructor(private http: HttpClient, private cdr: ChangeDetectorRef) {}
 
   ngOnInit() {
     this.leerIdentidadUsuario(); 
-    this.obtenerDatosCompletos(); // Carga carpetas y documentos de golpe
+    this.obtenerDatosCompletos(); 
   }
 
   leerIdentidadUsuario() {
@@ -61,24 +65,20 @@ export class DashboardComponent implements OnInit {
     this.cdr.detectChanges();
   }
 
-  // ✨ NUEVO: Carga los directorios y los documentos a la vez
   obtenerDatosCompletos() {
     this.cargandoBoveda = true; 
     const token = localStorage.getItem('token_medicloud');
     const headers = new HttpHeaders().set('Authorization', `Bearer ${token}`);
 
-    // 1. Obtener los nombres de las carpetas
     this.http.get('https://medicloud-backend-tuug.onrender.com/api/mis-carpetas', { headers }).subscribe({
       next: (resCarpetas: any) => {
         this.misCarpetas = resCarpetas;
         
-        // 2. Obtener todos los documentos
         this.http.get('https://medicloud-backend-tuug.onrender.com/api/carpetas', { headers }).subscribe({
           next: (resDocs: any) => {
             this.carpetas = resDocs.carpetas || resDocs;
             this.cargandoBoveda = false; 
 
-            // Si ya estábamos dentro de una carpeta (por ejemplo al subir archivo), refrescamos sus documentos
             if (this.carpetaActual) {
               this.entrarCarpeta(this.carpetaActual);
             }
@@ -91,19 +91,16 @@ export class DashboardComponent implements OnInit {
     });
   }
 
-  // ✨ NUEVO: Al hacer clic en una carpeta, filtramos sus documentos
   entrarCarpeta(carpeta: any) {
     this.carpetaActual = carpeta;
-    // Filtramos los documentos donde la "ubicacion" coincida con el nombre de la carpeta
     this.documentosDeCarpeta = this.carpetas.filter(doc => doc.ubicacion === carpeta.nombre);
     this.cdr.detectChanges();
   }
 
-  // ✨ NUEVO: Botón de Atrás
   volverACarpetas() {
     this.carpetaActual = null;
     this.documentosDeCarpeta = [];
-    this.obtenerDatosCompletos(); // Refrescar por si hubo cambios
+    this.obtenerDatosCompletos(); 
     this.cdr.detectChanges();
   }
 
@@ -118,7 +115,6 @@ export class DashboardComponent implements OnInit {
 
     this.http.get(`https://medicloud-backend-tuug.onrender.com/api/carpetas/buscar?nombre=${termino}`, { headers }).subscribe({
       next: (respuesta: any) => {
-        // En búsqueda, mostramos los resultados directamente simulando que es una carpeta especial
         this.carpetaActual = { nombre: `Búsqueda: "${termino}"` };
         this.documentosDeCarpeta = respuesta.carpetas || respuesta;
         this.cargandoBoveda = false;
@@ -145,7 +141,6 @@ export class DashboardComponent implements OnInit {
 
   abrirModalSubida() {
     this.mostrarModalUpload = true;
-    // Si estamos dentro de una carpeta, pre-seleccionarla en el desplegable
     if (this.carpetaActual && this.carpetaActual.id_carpeta) {
       this.nuevoDoc.id_carpeta = this.carpetaActual.id_carpeta;
     } else if (this.misCarpetas.length > 0) {
@@ -180,11 +175,38 @@ export class DashboardComponent implements OnInit {
         this.subiendo = false;
         this.archivoSeleccionado = null;
         this.nuevoDoc = { nombre: '', criticidad: 'NORMAL', id_carpeta: '' };
-        this.obtenerDatosCompletos(); // Refrescar para ver el nuevo archivo
+        this.obtenerDatosCompletos(); 
       },
       error: (err) => {
         alert("❌ Error: " + (err.error?.error || "Fallo al conectar con el servidor"));
         this.subiendo = false;
+        this.cdr.detectChanges();
+      }
+    });
+  }
+
+  // ✨ NUEVA FUNCIÓN: CREAR CARPETA
+  crearCarpeta() {
+    if (!this.nuevaCarpetaNombre.trim()) {
+      alert("El nombre del directorio no puede estar vacío.");
+      return;
+    }
+
+    this.creandoCarpeta = true;
+    const token = localStorage.getItem('token_medicloud');
+    const headers = new HttpHeaders().set('Authorization', `Bearer ${token}`);
+
+    this.http.post('https://medicloud-backend-tuug.onrender.com/api/carpetas', { nombre: this.nuevaCarpetaNombre }, { headers }).subscribe({
+      next: (res: any) => {
+        alert("✅ " + res.mensaje);
+        this.mostrarModalCarpeta = false;
+        this.nuevaCarpetaNombre = '';
+        this.creandoCarpeta = false;
+        this.obtenerDatosCompletos(); // Refresca todo para mostrar la nueva carpeta
+      },
+      error: (err) => {
+        alert("❌ Error: " + (err.error?.error || "Fallo al crear directorio"));
+        this.creandoCarpeta = false;
         this.cdr.detectChanges();
       }
     });
