@@ -21,6 +21,10 @@ export class DashboardComponent implements OnInit {
   nombreUsuario: string = '';
   vistaActual: 'boveda' | 'admin' = 'boveda'; 
   subVistaAdmin: 'usuarios' | 'auditoria' = 'usuarios'; 
+
+  // ✨ NAVEGACIÓN JERÁRQUICA
+  clienteSeleccionadoBoveda: string | null = null;
+  clienteSeleccionadoAdmin: string | null = null;
   
   listaUsuarios: any[] = []; 
   logsAuditoria: any[] = []; 
@@ -47,6 +51,39 @@ export class DashboardComponent implements OnInit {
   ngOnInit() {
     this.leerIdentidadUsuario(); 
     this.obtenerDatosCompletos(); 
+  }
+
+  // ✨ GETTERS PARA FILTRADO DINÁMICO
+  get clientesUnicosBoveda() {
+    const nombres = this.misCarpetas.map(c => c.cliente || 'Servicios Centrales');
+    return [...new Set(nombres)];
+  }
+
+  get clientesUnicosAdmin() {
+    const nombres = this.listaUsuarios.map(u => u.nombre_empresa || 'Identidades Internas');
+    return [...new Set(nombres)];
+  }
+
+  // ✨ MÉTODOS DE NAVEGACIÓN
+  seleccionarClienteBoveda(cliente: string) {
+    this.clienteSeleccionadoBoveda = cliente;
+    this.cdr.detectChanges();
+  }
+
+  volverAClientesBoveda() {
+    this.clienteSeleccionadoBoveda = null;
+    this.carpetaActual = null;
+    this.cdr.detectChanges();
+  }
+
+  seleccionarClienteAdmin(cliente: string) {
+    this.clienteSeleccionadoAdmin = cliente;
+    this.cdr.detectChanges();
+  }
+
+  volverAClientesAdmin() {
+    this.clienteSeleccionadoAdmin = null;
+    this.cdr.detectChanges();
   }
 
   manejarErrorSeguridad(err: any) {
@@ -117,13 +154,13 @@ export class DashboardComponent implements OnInit {
   volverACarpetas() {
     this.carpetaActual = null;
     this.documentosDeCarpeta = [];
-    this.obtenerDatosCompletos(); 
     this.cdr.detectChanges();
   }
 
   buscarCarpeta(termino: string) {
     if (!termino.trim()) {
       this.volverACarpetas(); 
+      this.clienteSeleccionadoBoveda = null;
       return;
     }
     this.cargandoBoveda = true;
@@ -132,6 +169,7 @@ export class DashboardComponent implements OnInit {
 
     this.http.get(`https://medicloud-backend-tuug.onrender.com/api/carpetas/buscar?nombre=${termino}`, { headers }).subscribe({
       next: (respuesta: any) => {
+        this.clienteSeleccionadoBoveda = 'Resultado de Búsqueda';
         this.carpetaActual = { nombre: `Búsqueda: "${termino}"` };
         this.documentosDeCarpeta = respuesta.carpetas || respuesta;
         this.cargandoBoveda = false;
@@ -241,14 +279,10 @@ export class DashboardComponent implements OnInit {
     this.cerrarSesionEvento.emit();
   }
 
-  // ✨ LA GRAN MEJORA: Ya no abrimos URLs a lo loco, se las pedimos al servidor
   abrirDocumento(doc: any) {
     const headers = new HttpHeaders().set('Authorization', `Bearer ${localStorage.getItem('token_medicloud')}`);
-    
-    // Solicitamos una URL Temporal (Autodestructible en 60s)
     this.http.get(`https://medicloud-backend-tuug.onrender.com/api/documentos/${doc.id_documento}/url`, { headers }).subscribe({
       next: (res: any) => {
-        // Abrimos el archivo de forma segura en otra pestaña
         window.open(res.url, '_blank');
       },
       error: (err) => this.manejarErrorSeguridad(err)

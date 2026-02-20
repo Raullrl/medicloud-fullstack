@@ -895,3 +895,93 @@ input[type="file"]::file-selector-button:hover {
     width: 100%;
   }
 }
+
+/* ... (Todo tu CSS anterior se mantiene) ... */
+
+/* ✨ NUEVOS ESTILOS PARA LA NAVEGACIÓN JERÁRQUICA */
+
+.client-card {
+  cursor: pointer;
+  background: linear-gradient(135deg, #ffffff, #f1f5f9);
+  border-top: 5px solid #2563eb !important;
+}
+
+.client-card:hover {
+  transform: translateY(-8px);
+  background: white;
+  box-shadow: 0 40px 80px -15px rgba(0,0,0,0.08);
+}
+
+.client-card h3 {
+  font-size: 20px;
+  color: #1e40af;
+  margin-top: 10px;
+}
+
+.card-info {
+  font-size: 13px;
+  color: #64748b;
+  margin-bottom: 20px;
+}
+
+.btn-ghost {
+  width: 100%;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  padding: 10px;
+  border-radius: 10px;
+  color: #2563eb;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.btn-ghost:hover {
+  background: #2563eb;
+  color: white;
+}
+
+.btn-back {
+  background: #ffffff !important;
+  color: #334155 !important;
+  border: 1px solid #e2e8f0 !important;
+  padding: 8px 16px !important;
+  font-weight: 700 !important;
+  box-shadow: 0 10px 20px -10px rgba(0,0,0,0.1) !important;
+}
+
+.btn-back:hover {
+  transform: translateX(-5px) !important;
+  color: #2563eb !important;
+}
+
+.section-title {
+  font-size: 22px;
+  font-weight: 800;
+  margin-bottom: 25px;
+  color: #0f172a;
+  letter-spacing: -0.02em;
+}
+
+/* Mejora para la tabla Admin */
+.modern-table td small {
+  color: #94a3b8;
+  display: block;
+  margin-top: 2px;
+}
+
+.actions-cell {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+/* Animación de entrada para las tarjetas */
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.carpeta-card {
+  animation: fadeInUp 0.4s ease forwards;
+}
