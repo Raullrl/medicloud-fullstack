@@ -23,6 +23,15 @@
     </div>
   } 
   @else {
+
+    <div style="margin-bottom: 25px; display: flex; justify-content: center;">
+      <input 
+        type="text" 
+        placeholder="🔎 Buscar expediente por nombre (Protección SQLi activada)..." 
+        style="width: 100%; max-width: 600px; padding: 12px 20px; border-radius: 8px; border: 1px solid #bce8f1; font-size: 1rem; box-shadow: 0 2px 5px rgba(0,0,0,0.05);"
+        (input)="buscarCarpeta($any($event.target).value)">
+    </div>
+
     <div class="carpetas-grid">
       @for (carpeta of carpetas; track $index) {
         <div class="carpeta-card">
@@ -32,14 +41,20 @@
           <button class="btn-abrir" (click)="abrirCarpeta(carpeta.ruta)"> Abrir Carpeta</button>
         </div>
       } @empty {
-        <div style="grid-column: 1 / -1; text-align: center; padding: 50px; background-color: #f9f9f9; border: 2px dashed #ccc; border-radius: 15px; margin-top: 20px;">
-          <h2 style="color: #d9534f; margin-bottom: 15px;">🔒 Acceso Restringido por Política de Seguridad</h2>
-          <p style="color: #666; font-size: 1.1rem; line-height: 1.6; max-width: 700px; margin: 0 auto;">
-            Tu perfil de usuario en la matriz <strong>MediCloud</strong> no cuenta con privilegios de auditoría para visualizar expedientes médicos de clientes externos.
-            <br><br>
-            En cumplimiento con el <strong>RGPD</strong> y el <strong>Principio de Mínimo Privilegio</strong>, este acceso está reservado exclusivamente a los roles de <strong>Gerencia</strong> y <strong>Administración Técnica</strong>.
-          </p>
-        </div>
+        @if (tieneAccesoTotal) {
+          <div style="grid-column: 1 / -1; text-align: center; padding: 40px;">
+            <p style="color: #666; font-size: 1.1rem;">No se han encontrado expedientes con ese nombre en la base de datos.</p>
+          </div>
+        } @else {
+          <div style="grid-column: 1 / -1; text-align: center; padding: 50px; background-color: #f9f9f9; border: 2px dashed #ccc; border-radius: 15px;">
+            <h2 style="color: #d9534f; margin-bottom: 15px;">🔒 Acceso Restringido por Política de Seguridad</h2>
+            <p style="color: #666; font-size: 1.1rem; line-height: 1.6; max-width: 700px; margin: 0 auto;">
+              Tu perfil de usuario en la matriz <strong>MediCloud</strong> no cuenta con privilegios de auditoría para visualizar expedientes médicos de clientes externos.
+              <br><br>
+              En cumplimiento con el <strong>RGPD</strong> y el <strong>Principio de Mínimo Privilegio</strong>, este acceso está reservado exclusivamente a los roles directivos y técnicos.
+            </p>
+          </div>
+        }
       }
     </div>
   }

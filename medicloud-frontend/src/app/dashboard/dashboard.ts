@@ -15,10 +15,11 @@ export class DashboardComponent implements OnInit {
   mensajeServidor = '¡Bóveda Segura de MediCloud conectada!';
   carpetas: any[] = [];
   
-  // ✨ NUEVA VARIABLE: Controla si estamos esperando respuesta del servidor
   cargandoBoveda: boolean = true; 
 
   esAdmin: boolean = false;
+  // ✨ NUEVO: Variable para saber si el usuario puede ver todas las carpetas (SysAdmin o Gerencia)
+  tieneAccesoTotal: boolean = false; 
   nombreUsuario: string = '';
   vistaActual: 'boveda' | 'admin' = 'boveda'; 
   listaUsuarios: any[] = []; 
@@ -36,7 +37,13 @@ export class DashboardComponent implements OnInit {
       try {
         const payload = JSON.parse(atob(token.split('.')[1]));
         this.nombreUsuario = payload.nombre;
+        
+        // 🛡️ LÓGICA DE SEGURIDAD:
+        // SysAdmin (3) ve el botón de administración.
         this.esAdmin = (payload.rol === 3); 
+        // SysAdmin (3) y Gerencia (1) tienen acceso a todo el contenido de la bóveda.
+        this.tieneAccesoTotal = (payload.rol === 3 || payload.rol === 1);
+        
       } catch (e) {
         console.error("Error al leer el token", e);
       }
@@ -49,6 +56,31 @@ export class DashboardComponent implements OnInit {
       this.obtenerUsuariosAdmin();
     }
     this.cdr.detectChanges();
+  }
+
+  // ✨ NUEVO: Función que conecta con el backend para buscar sin vulnerabilidad SQLi
+  buscarCarpeta(termino: string) {
+    if (!termino.trim()) {
+      this.obtenerCarpetas(); // Si el buscador está vacío, volvemos a cargar todo
+      return;
+    }
+
+    this.cargandoBoveda = true;
+    const token = localStorage.getItem('token_medicloud');
+    const headers = new HttpHeaders().set('Authorization', `Bearer ${token}`);
+
+    this.http.get(`https://medicloud-backend-tuug.onrender.com/api/carpetas/buscar?nombre=${termino}`, { headers }).subscribe({
+      next: (respuesta: any) => {
+        this.carpetas = respuesta.carpetas || respuesta;
+        this.cargandoBoveda = false;
+        this.cdr.detectChanges();
+      },
+      error: (err) => {
+        console.error("❌ Error en búsqueda:", err);
+        this.cargandoBoveda = false;
+        this.cdr.detectChanges();
+      }
+    });
   }
 
   obtenerUsuariosAdmin() {
@@ -68,7 +100,7 @@ export class DashboardComponent implements OnInit {
   }
 
   obtenerCarpetas() {
-    this.cargandoBoveda = true; // ✨ Empezamos a cargar
+    this.cargandoBoveda = true; 
     const token = localStorage.getItem('token_medicloud');
     const headers = new HttpHeaders().set('Authorization', `Bearer ${token}`);
 
@@ -79,12 +111,12 @@ export class DashboardComponent implements OnInit {
         } else if (Array.isArray(respuesta)) {
           this.carpetas = respuesta;
         }
-        this.cargandoBoveda = false; // ✨ Carga finalizada con éxito
+        this.cargandoBoveda = false; 
         this.cdr.detectChanges(); 
       },
       error: (err) => {
         console.error("❌ Error al obtener carpetas:", err);
-        this.cargandoBoveda = false; // ✨ Carga finalizada (aunque fallara)
+        this.cargandoBoveda = false; 
         this.cdr.detectChanges();
       }
     });
