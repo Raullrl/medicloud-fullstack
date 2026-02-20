@@ -50,10 +50,10 @@ const db = mysql.createPool({
 
 console.log("📡 Backend conectado a la base de datos de Aiven...");
 
-// ✨ --- NUEVO: FUNCIÓN DE AUDITORÍA CORREGIDA (Usa ID_usuario en lugar de email) --- ✨
-const registrarAuditoria = (id_usuario, id_rol, accion) => {
-  const sql = "INSERT INTO registro_auditoria (id_usuario, id_rol, accion_realizada) VALUES (?, ?, ?)";
-  db.query(sql, [id_usuario, id_rol, accion], (err) => {
+// ✨ --- CORREGIDO: VOLVEMOS A USAR usuario_email PARA QUE COINCIDA CON TU BBDD --- ✨
+const registrarAuditoria = (email, rol_id, accion) => {
+  const sql = "INSERT INTO registro_auditoria (usuario_email, rol_id, accion_realizada) VALUES (?, ?, ?)";
+  db.query(sql, [email, rol_id, accion], (err) => {
     if (err) console.error("❌ Error en registro_auditoria:", err.message);
   });
 };
@@ -140,7 +140,7 @@ app.get('/api/carpetas', verificarToken, (req, res) => {
   const dominio = email.split('@')[1]?.split('.')[0] || '';
   const ipCliente = req.headers['x-forwarded-for'] || req.ip;
 
-  registrarAuditoria(req.usuario.id, req.usuario.rol, `Acceso a bóveda - Dominio: ${dominio}`);
+  registrarAuditoria(req.usuario.email, req.usuario.rol, `Acceso a bóveda - Dominio: ${dominio}`);
   registrarLogForense(req.usuario.id, null, ipCliente, 'CONSULTA_BOVEDA', 'EXITOSO');
 
   let querySQL = `
@@ -169,7 +169,7 @@ app.get('/api/carpetas/buscar', verificarToken, (req, res) => {
   const dominio = req.usuario.email.split('@')[1]?.split('.')[0] || '';
   const ipCliente = req.headers['x-forwarded-for'] || req.ip;
   
-  registrarAuditoria(req.usuario.id, req.usuario.rol, `Búsqueda segura: "${termino}"`);
+  registrarAuditoria(req.usuario.email, req.usuario.rol, `Búsqueda segura: "${termino}"`);
   registrarLogForense(req.usuario.id, null, ipCliente, 'BUSQUEDA_EXPEDIENTE', 'EXITOSO');
 
   let querySQL = `
@@ -232,7 +232,6 @@ app.post('/api/admin/usuarios', verificarToken, async (req, res) => {
     const salt = await bcrypt.genSalt(10);
     const hash = await bcrypt.hash(password, salt);
 
-    // ✨ CORREGIDO: Cambiado 'Activa' por 'Activo'
     db.query('INSERT INTO usuario (nombre_usuario, email, hash_contraseña, estado) VALUES (?, ?, ?, ?)', 
     [nombre, email, hash, 'Activo'], (err, result) => {
       if (err) return res.status(500).json({ error: 'Error SQL Insertar Usuario: ' + err.message });
@@ -240,7 +239,7 @@ app.post('/api/admin/usuarios', verificarToken, async (req, res) => {
       db.query('INSERT INTO usuario_rol (id_usuario, id_rol) VALUES (?, ?)', [result.insertId, id_rol], (err) => {
         if (err) return res.status(500).json({ error: 'Error SQL Asignar Rol: ' + err.message });
         
-        registrarAuditoria(req.usuario.id, req.usuario.rol, `Alta de usuario: ${email}`);
+        registrarAuditoria(req.usuario.email, req.usuario.rol, `Alta de usuario: ${email}`);
         registrarLogForense(req.usuario.id, null, ipCliente, 'ALTA_USUARIO', 'EXITOSO');
         
         res.json({ mensaje: 'Empleado registrado con éxito en MediCloud.' });
@@ -262,7 +261,7 @@ app.put('/api/admin/usuarios/:id/estado', verificarToken, (req, res) => {
   db.query('UPDATE usuario SET estado = ? WHERE id_usuario = ?', [nuevoEstado, id], (err) => {
     if (err) return res.status(500).json({ error: 'Error SQL al actualizar estado: ' + err.message });
 
-    registrarAuditoria(req.usuario.id, req.usuario.rol, `Usuario ID ${id} cambiado a ${nuevoEstado}`);
+    registrarAuditoria(req.usuario.email, req.usuario.rol, `Usuario ID ${id} cambiado a ${nuevoEstado}`);
     registrarLogForense(req.usuario.id, null, ipCliente, 'CAMBIO_ESTADO', nuevoEstado);
     
     res.json({ mensaje: `El estado del usuario ahora es: ${nuevoEstado}` });
