@@ -30,7 +30,6 @@ app.use(cors({
 app.use(express.json());
 
 // ✨ --- RUTA DE OXÍGENO PARA RENDER (Health Check) --- ✨
-// Esta ruta le dice a Render: "Estoy vivo, no me cortes la conexión"
 app.get('/', (req, res) => {
   res.status(200).send('🚀 MediCloud API is online and secure.');
 });
@@ -66,7 +65,7 @@ const upload = multer({
 
 console.log("📡 Backend MediCloud conectado a Aiven y Supabase...");
 
-// --- FUNCIONES DE AUDITORÍA (Tus originales) ---
+// --- FUNCIONES DE AUDITORÍA ---
 const registrarAuditoria = (email, rol_id, accion) => {
   const sql = "INSERT INTO registro_auditoria (usuario_email, rol_id, accion_realizada) VALUES (?, ?, ?)";
   db.query(sql, [email, rol_id, accion], (err) => {
@@ -136,7 +135,24 @@ const verificarToken = (req, res, next) => {
   });
 };
 
-// --- RUTA: CARPETAS (Actualizada con JOIN a documentos y versiones) ---
+// ✨ --- NUEVA RUTA: OBTENER CARPETAS DEL CLIENTE LOGUEADO --- ✨
+app.get('/api/mis-carpetas', verificarToken, (req, res) => {
+  const email = req.usuario.email || '';
+  const dominio = email.split('@')[1]?.split('.')[0] || '';
+
+  const sql = `
+    SELECT c.id_carpeta, c.nombre 
+    FROM carpeta c 
+    JOIN cliente cl ON c.id_cliente = cl.id_cliente 
+    WHERE cl.nombre_empresa LIKE ?`;
+
+  db.query(sql, [`%${dominio}%`], (err, results) => {
+    if (err) return res.status(500).json({ error: 'Error al obtener tus carpetas' });
+    res.json(results);
+  });
+});
+
+// --- RUTA: CARPETAS (Actualizada para traer el nombre de la carpeta) ---
 app.get('/api/carpetas', verificarToken, (req, res) => {
   const email = req.usuario.email || '';
   const dominio = email.split('@')[1]?.split('.')[0] || '';
@@ -146,7 +162,7 @@ app.get('/api/carpetas', verificarToken, (req, res) => {
   registrarLogForense(req.usuario.id, null, ipCliente, 'CONSULTA_BOVEDA', 'EXITOSO');
 
   let querySQL = `
-    SELECT d.id_documento, d.nombre_archivo AS nombre_carpeta, d.nivel_criticidad, v.ruta_cifrada AS ruta, cl.nombre_empresa AS cliente
+    SELECT d.id_documento, d.nombre_archivo AS nombre_carpeta, c.nombre AS ubicacion, d.nivel_criticidad, v.ruta_cifrada AS ruta, cl.nombre_empresa AS cliente
     FROM documento d
     JOIN carpeta c ON d.id_carpeta = c.id_carpeta
     JOIN cliente cl ON c.id_cliente = cl.id_cliente
@@ -167,7 +183,7 @@ app.get('/api/carpetas', verificarToken, (req, res) => {
   }
 });
 
-// --- RUTA: BÚSQUEDA SEGURA (Actualizada) ---
+// --- RUTA: BÚSQUEDA SEGURA ---
 app.get('/api/carpetas/buscar', verificarToken, (req, res) => {
   const termino = req.query.nombre || '';
   const dominio = req.usuario.email.split('@')[1]?.split('.')[0] || '';
@@ -176,7 +192,7 @@ app.get('/api/carpetas/buscar', verificarToken, (req, res) => {
   registrarAuditoria(req.usuario.email, req.usuario.rol, `Búsqueda segura: "${termino}"`);
 
   let querySQL = `
-    SELECT d.id_documento, d.nombre_archivo AS nombre_carpeta, d.nivel_criticidad, v.ruta_cifrada AS ruta, cl.nombre_empresa AS cliente
+    SELECT d.id_documento, d.nombre_archivo AS nombre_carpeta, c.nombre AS ubicacion, d.nivel_criticidad, v.ruta_cifrada AS ruta, cl.nombre_empresa AS cliente
     FROM documento d
     JOIN carpeta c ON d.id_carpeta = c.id_carpeta
     JOIN cliente cl ON c.id_cliente = cl.id_cliente
@@ -196,43 +212,40 @@ app.get('/api/carpetas/buscar', verificarToken, (req, res) => {
   });
 });
 
-// ✨ --- NUEVA RUTA: SUBIDA DUAL A SUPABASE Y TABLAS RELACIONADAS ---
+// ✨ --- RUTA: SUBIDA A SUPABASE Y TABLAS RELACIONADAS (Modificada para usar id_carpeta) ---
 app.post('/api/carpetas/upload', verificarToken, upload.single('archivo'), async (req, res) => {
   const ipCliente = req.headers['x-forwarded-for'] || req.ip;
-  const { nombre, criticidad } = req.body;
+  const { nombre, criticidad, id_carpeta } = req.body; // ✨ Ahora recibimos id_carpeta del desplegable
   const archivo = req.file;
-  const dominio = req.usuario.email.split('@')[1]?.split('.')[0] || '';
 
-  if (!archivo || !nombre) return res.status(400).json({ error: 'Faltan datos del archivo.' });
+  if (!archivo || !nombre || !id_carpeta) return res.status(400).json({ error: 'Faltan datos del archivo o carpeta.' });
 
   try {
-    const nombreUnico = `${Date.now()}-${archivo.originalname.replace(/\s+/g, '_')}`;
+    // Limpiamos caracteres extraños para Supabase
+    const nombreLimpio = archivo.originalname.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-zA-Z0-9.]/g, "_");
+    const nombreUnico = `${Date.now()}-${nombreLimpio}`;
+
     const { data, error } = await supabase.storage.from('historiales-medicos').upload(nombreUnico, archivo.buffer, { contentType: archivo.mimetype });
     if (error) throw error;
 
     const { data: urlData } = supabase.storage.from('historiales-medicos').getPublicUrl(nombreUnico);
     const urlPublica = urlData.publicUrl;
 
-    // Buscar carpeta del cliente por dominio
-    db.query("SELECT id_carpeta FROM carpeta c JOIN cliente cl ON c.id_cliente = cl.id_cliente WHERE cl.nombre_empresa LIKE ? LIMIT 1", [`%${dominio}%`], (err, results) => {
-      const idCarpeta = results[0]?.id_carpeta || 1;
+    // 1. Insertar Documento con el ID de la carpeta seleccionada por el usuario
+    const sqlDoc = "INSERT INTO documento (id_carpeta, nombre_archivo, tipo_documento, nivel_criticidad, estado_cifrado) VALUES (?, ?, ?, ?, 1)";
+    const tipo = archivo.mimetype.split('/')[1].toUpperCase();
+    
+    db.query(sqlDoc, [id_carpeta, nombre, tipo, criticidad], (errD, resD) => {
+      if (errD) return res.status(500).json({ error: 'Error al registrar documento en Aiven' });
       
-      // 1. Insertar Documento
-      const sqlDoc = "INSERT INTO documento (id_carpeta, nombre_archivo, tipo_documento, nivel_criticidad, estado_cifrado) VALUES (?, ?, ?, ?, 1)";
-      const tipo = archivo.mimetype.split('/')[1].toUpperCase();
-      
-      db.query(sqlDoc, [idCarpeta, nombre, tipo, criticidad], (errD, resD) => {
-        if (errD) return res.status(500).json({ error: 'Error al registrar documento en Aiven' });
-        
-        // 2. Insertar Versión (con URL de Supabase)
-        const sqlVer = "INSERT INTO version_documento (id_documento, ruta_cifrada, hash_integridad) VALUES (?, ?, ?)";
-        db.query(sqlVer, [resD.insertId, urlPublica, 'SHA256-BY-SYSTEM'], (errV) => {
-          if (errV) return res.status(500).json({ error: 'Error al registrar versión' });
+      // 2. Insertar Versión (con URL de Supabase)
+      const sqlVer = "INSERT INTO version_documento (id_documento, ruta_cifrada, hash_integridad) VALUES (?, ?, ?)";
+      db.query(sqlVer, [resD.insertId, urlPublica, 'SHA256-BY-SYSTEM'], (errV) => {
+        if (errV) return res.status(500).json({ error: 'Error al registrar versión' });
 
-          registrarAuditoria(req.usuario.email, req.usuario.rol, `SUBIDA ARCHIVO: ${nombre}`);
-          registrarLogForense(req.usuario.id, resD.insertId, ipCliente, 'UPLOAD_FILE', 'EXITOSO');
-          res.json({ mensaje: 'Expediente cifrado y almacenado correctamente en Supabase Cloud.' });
-        });
+        registrarAuditoria(req.usuario.email, req.usuario.rol, `SUBIDA ARCHIVO: ${nombre}`);
+        registrarLogForense(req.usuario.id, resD.insertId, ipCliente, 'UPLOAD_FILE', 'EXITOSO');
+        res.json({ mensaje: 'Expediente cifrado y almacenado correctamente.' });
       });
     });
   } catch (e) { res.status(500).json({ error: 'Fallo en Storage: ' + e.message }); }
