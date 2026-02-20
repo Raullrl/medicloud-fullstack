@@ -58,7 +58,7 @@ app.get('/api/estado', (req, res) => {
   });
 });
 
-// --- RUTA DE LOGIN (ACTUALIZADA: BUSQUEDA POR EMAIL) ---
+// --- RUTA DE LOGIN (BUSQUEDA POR EMAIL) ---
 app.post('/api/login', loginLimiter, async (req, res) => {
   const { usuario, password } = req.body; 
   
@@ -127,37 +127,24 @@ const verificarToken = (req, res, next) => {
   });
 };
 
-// --- RUTA PROTEGIDA: CARPETAS (CON FILTRADO POR DOMINIO) ---
+// --- RUTA PROTEGIDA: CARPETAS (FILTRADO POR DOMINIO) ---
 app.get('/api/carpetas', verificarToken, (req, res) => {
-  
   const email = req.usuario.email || '';
   const dominio = email.split('@')[1]?.split('.')[0] || '';
   
-  console.log(`📂 Usuario ${req.usuario.nombre} (Rol: ${req.usuario.rol}) solicita carpetas.`);
-
   let querySQL = `
-    SELECT 
-      c.id_carpeta, 
-      c.nombre AS nombre_carpeta, 
-      c.ruta,
-      cl.nombre_empresa AS cliente
+    SELECT c.id_carpeta, c.nombre AS nombre_carpeta, c.ruta, cl.nombre_empresa AS cliente
     FROM carpeta c
     JOIN cliente cl ON c.id_cliente = cl.id_cliente
   `;
 
-  // 🛡️ REGLA DE SEGURIDAD ACTUALIZADA:
-  // Si el usuario NO es SysAdmin (Rol 3) Y TAMPOCO es Gerencia (Rol 1), filtramos por dominio.
   if (req.usuario.rol !== 3 && req.usuario.rol !== 1) {
-    console.log(`🔒 Aplicando aislamiento de datos por dominio: ${dominio}`);
     querySQL += ` WHERE cl.nombre_empresa LIKE ?`;
-    
     db.query(querySQL, [`%${dominio}%`], (err, results) => {
       if (err) return res.status(500).json({ error: 'Error al filtrar bóveda' });
       res.json({ mensaje: "Bóveda filtrada por dominio", carpetas: results });
     });
   } else {
-    // Si es SysAdmin (3) o Gerencia (1), puede verlo TODO (Auditoría total)
-    console.log(`🔓 Acceso administrativo concedido. Sin restricciones de dominio.`);
     db.query(querySQL, (err, results) => {
       if (err) return res.status(500).json({ error: 'Error al leer bóveda' });
       res.json({ mensaje: "Acceso total de administrador", carpetas: results });
@@ -165,11 +152,36 @@ app.get('/api/carpetas', verificarToken, (req, res) => {
   }
 });
 
-// ✨ --- RUTA PROTEGIDA: PANEL DE ADMINISTRADOR (SOLO SYSADMIN) --- ✨
+// ✨ --- RUTA NUEVA: BÚSQUEDA SEGURA CONTRA INYECCIÓN SQL (SQLi) --- ✨
+app.get('/api/carpetas/buscar', verificarToken, (req, res) => {
+  const termino = req.query.nombre || '';
+  const email = req.usuario.email || '';
+  const dominio = email.split('@')[1]?.split('.')[0] || '';
+  
+  // CONSULTA PARAMETRIZADA: El signo '?' bloquea cualquier intento de Inyección SQL
+  let querySQL = `
+    SELECT c.id_carpeta, c.nombre AS nombre_carpeta, c.ruta, cl.nombre_empresa AS cliente
+    FROM carpeta c
+    JOIN cliente cl ON c.id_cliente = cl.id_cliente
+    WHERE c.nombre LIKE ?
+  `;
+  const params = [`%${termino}%`];
+
+  // Si no es SysAdmin (3) ni Gerencia (1), aplicamos también el filtro de seguridad de su dominio
+  if (req.usuario.rol !== 3 && req.usuario.rol !== 1) {
+    querySQL += ` AND cl.nombre_empresa LIKE ?`;
+    params.push(`%${dominio}%`);
+  }
+
+  db.query(querySQL, params, (err, results) => {
+    if (err) return res.status(500).json({ error: 'Error en la búsqueda segura' });
+    res.json({ carpetas: results });
+  });
+});
+
+// --- RUTA PROTEGIDA: PANEL DE ADMINISTRADOR (SOLO SYSADMIN) ---
 app.get('/api/admin/usuarios', verificarToken, (req, res) => {
-  // 🛡️ SEGURIDAD NIVEL 10: Solo el SysAdmin (3) entra. Gerencia (1) es rechazada aquí.
   if (req.usuario.rol !== 3) {
-    console.log(`⛔ Bloqueo: El usuario ${req.usuario.nombre} (Rol ${req.usuario.rol}) intentó acceder a gestión de usuarios.`);
     return res.status(403).json({ error: 'Acceso denegado. Se requieren privilegios de Administrador Técnico (SysAdmin).' });
   }
 
@@ -181,15 +193,8 @@ app.get('/api/admin/usuarios', verificarToken, (req, res) => {
   `;
 
   db.query(querySQL, (err, results) => {
-    if (err) {
-      console.error('❌ Error al listar usuarios:', err);
-      return res.status(500).json({ error: 'Error del servidor al leer los usuarios' });
-    }
-
-    res.json({
-      mensaje: "✅ Lista de empleados obtenida con éxito",
-      usuarios: results
-    });
+    if (err) return res.status(500).json({ error: 'Error del servidor al leer los usuarios' });
+    res.json({ usuarios: results });
   });
 });
 
