@@ -6,21 +6,17 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken'); 
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
-// ✨ NUEVAS LIBRERÍAS
 const multer = require('multer');
 const { createClient } = require('@supabase/supabase-js');
 
 const app = express();
 
-// 🛡️ Configuración para Render (Proxy)
 app.set('trust proxy', 1);
 
-// 🛡️ Seguridad de cabeceras
 app.use(helmet({
   crossOriginResourcePolicy: false,
 }));
 
-// --- CONFIGURACIÓN DE SEGURIDAD (CORS) ---
 app.use(cors({
   origin: '*', 
   methods: ['GET', 'POST', 'PUT', 'DELETE'],
@@ -29,19 +25,16 @@ app.use(cors({
 
 app.use(express.json());
 
-// ✨ --- RUTA DE OXÍGENO PARA RENDER (Health Check) --- ✨
 app.get('/', (req, res) => {
   res.status(200).send('🚀 MediCloud API is online and secure.');
 });
 
-// 🛡️ Limitador de Fuerza Bruta
 const loginLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, 
   max: 5, 
   message: { error: '⛔ Demasiados intentos fallidos. Tu IP ha sido bloqueada temporalmente.' }
 });
 
-// --- CONFIGURACIÓN DE LA BASE DE DATOS (AIVEN) ---
 const db = mysql.createPool({
   host: process.env.DB_HOST,
   user: process.env.DB_USER,
@@ -56,16 +49,14 @@ const db = mysql.createPool({
   }
 });
 
-// ✨ CONFIGURACIÓN SUPABASE Y MULTER
 const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_KEY);
 const upload = multer({ 
   storage: multer.memoryStorage(),
-  limits: { fileSize: 10 * 1024 * 1024 } // 10MB máx
+  limits: { fileSize: 10 * 1024 * 1024 } 
 });
 
 console.log("📡 Backend MediCloud conectado a Aiven y Supabase...");
 
-// --- FUNCIONES DE AUDITORÍA ---
 const registrarAuditoria = (email, rol_id, accion) => {
   const sql = "INSERT INTO registro_auditoria (usuario_email, rol_id, accion_realizada) VALUES (?, ?, ?)";
   db.query(sql, [email, rol_id, accion], (err) => {
@@ -81,7 +72,6 @@ const registrarLogForense = (id_usuario, id_doc, ip, accion, resultado) => {
   });
 };
 
-// --- RUTA DE ESTADO ---
 app.get('/api/estado', (req, res) => {
   db.query('SELECT 1', (err) => {
     if (err) return res.status(500).json({ error: 'Error de conexión' });
@@ -89,7 +79,6 @@ app.get('/api/estado', (req, res) => {
   });
 });
 
-// --- RUTA DE LOGIN ---
 app.post('/api/login', loginLimiter, async (req, res) => {
   const { usuario, password } = req.body; 
   const ipCliente = req.headers['x-forwarded-for'] || req.ip; 
@@ -122,7 +111,6 @@ app.post('/api/login', loginLimiter, async (req, res) => {
   });
 });
 
-// --- MIDDLEWARE VERIFICACIÓN ---
 const verificarToken = (req, res, next) => {
   const cabeceraAuth = req.headers['authorization'];
   const token = cabeceraAuth && cabeceraAuth.split(' ')[1];
@@ -135,24 +123,26 @@ const verificarToken = (req, res, next) => {
   });
 };
 
-// ✨ --- NUEVA RUTA: OBTENER CARPETAS DEL CLIENTE LOGUEADO --- ✨
+// ✨ --- RUTA MEJORADA: OBTENER CARPETAS (Directorios) --- ✨
 app.get('/api/mis-carpetas', verificarToken, (req, res) => {
   const email = req.usuario.email || '';
   const dominio = email.split('@')[1]?.split('.')[0] || '';
 
-  const sql = `
-    SELECT c.id_carpeta, c.nombre 
-    FROM carpeta c 
-    JOIN cliente cl ON c.id_cliente = cl.id_cliente 
-    WHERE cl.nombre_empresa LIKE ?`;
+  let sql = `SELECT c.id_carpeta, c.nombre, cl.nombre_empresa AS cliente FROM carpeta c JOIN cliente cl ON c.id_cliente = cl.id_cliente`;
+  let params = [];
 
-  db.query(sql, [`%${dominio}%`], (err, results) => {
+  if (req.usuario.rol !== 3 && req.usuario.rol !== 1) {
+    sql += ` WHERE cl.nombre_empresa LIKE ?`;
+    params.push(`%${dominio}%`);
+  }
+
+  db.query(sql, params, (err, results) => {
     if (err) return res.status(500).json({ error: 'Error al obtener tus carpetas' });
     res.json(results);
   });
 });
 
-// --- RUTA: CARPETAS (Actualizada para traer el nombre de la carpeta) ---
+// --- RUTA: CARPETAS (Documentos) ---
 app.get('/api/carpetas', verificarToken, (req, res) => {
   const email = req.usuario.email || '';
   const dominio = email.split('@')[1]?.split('.')[0] || '';
@@ -212,16 +202,14 @@ app.get('/api/carpetas/buscar', verificarToken, (req, res) => {
   });
 });
 
-// ✨ --- RUTA: SUBIDA A SUPABASE Y TABLAS RELACIONADAS (Modificada para usar id_carpeta) ---
 app.post('/api/carpetas/upload', verificarToken, upload.single('archivo'), async (req, res) => {
   const ipCliente = req.headers['x-forwarded-for'] || req.ip;
-  const { nombre, criticidad, id_carpeta } = req.body; // ✨ Ahora recibimos id_carpeta del desplegable
+  const { nombre, criticidad, id_carpeta } = req.body; 
   const archivo = req.file;
 
   if (!archivo || !nombre || !id_carpeta) return res.status(400).json({ error: 'Faltan datos del archivo o carpeta.' });
 
   try {
-    // Limpiamos caracteres extraños para Supabase
     const nombreLimpio = archivo.originalname.normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-zA-Z0-9.]/g, "_");
     const nombreUnico = `${Date.now()}-${nombreLimpio}`;
 
@@ -231,14 +219,12 @@ app.post('/api/carpetas/upload', verificarToken, upload.single('archivo'), async
     const { data: urlData } = supabase.storage.from('historiales-medicos').getPublicUrl(nombreUnico);
     const urlPublica = urlData.publicUrl;
 
-    // 1. Insertar Documento con el ID de la carpeta seleccionada por el usuario
     const sqlDoc = "INSERT INTO documento (id_carpeta, nombre_archivo, tipo_documento, nivel_criticidad, estado_cifrado) VALUES (?, ?, ?, ?, 1)";
     const tipo = archivo.mimetype.split('/')[1].toUpperCase();
     
     db.query(sqlDoc, [id_carpeta, nombre, tipo, criticidad], (errD, resD) => {
       if (errD) return res.status(500).json({ error: 'Error al registrar documento en Aiven' });
       
-      // 2. Insertar Versión (con URL de Supabase)
       const sqlVer = "INSERT INTO version_documento (id_documento, ruta_cifrada, hash_integridad) VALUES (?, ?, ?)";
       db.query(sqlVer, [resD.insertId, urlPublica, 'SHA256-BY-SYSTEM'], (errV) => {
         if (errV) return res.status(500).json({ error: 'Error al registrar versión' });
@@ -251,7 +237,6 @@ app.post('/api/carpetas/upload', verificarToken, upload.single('archivo'), async
   } catch (e) { res.status(500).json({ error: 'Fallo en Storage: ' + e.message }); }
 });
 
-// --- RUTAS ADMIN ---
 app.get('/api/admin/usuarios', verificarToken, (req, res) => {
   const ipCliente = req.headers['x-forwarded-for'] || req.ip;
   if (req.usuario.rol !== 3) {
@@ -290,7 +275,6 @@ app.get('/api/crear-hash/:clave', async (req, res) => {
   res.json({ hash_generated: hash });
 });
 
-// ✨ --- CONFIGURACIÓN DE PUERTO PARA CLOUD --- ✨
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`🚀 Servidor backend MediCloud ejecutándose en el puerto ${PORT}`);
