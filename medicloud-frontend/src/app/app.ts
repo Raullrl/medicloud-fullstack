@@ -1,4 +1,4 @@
-import { Component, ChangeDetectorRef } from '@angular/core';
+import { Component, ChangeDetectorRef, HostListener } from '@angular/core'; // ✨ Añadido HostListener
 import { FormsModule } from '@angular/forms';
 import { HttpClient } from '@angular/common/http';
 import { DashboardComponent } from './dashboard/dashboard'; 
@@ -16,16 +16,38 @@ export class App {
   sesionIniciada = false; 
   cargando = false; 
 
-  // ⏱️ AÑADIDO 1: Variable para guardar nuestro reloj de seguridad
   temporizadorSesion: any;
 
-  // ✨ AÑADIDO: ChangeDetectorRef para forzar a la pantalla a actualizarse
   constructor(private http: HttpClient, private cdr: ChangeDetectorRef) {}
+
+  // ✨ AÑADIDO: Sensor de actividad (Ratón, Teclado, Clics)
+  // Cada vez que el usuario haga algo, este sensor se dispara
+  @HostListener('window:mousemove')
+  @HostListener('window:keydown')
+  @HostListener('window:click')
+  @HostListener('window:scroll')
+  gestionarActividad() {
+    // Si la sesión está iniciada, reiniciamos el reloj cada vez que el usuario se mueva
+    if (this.sesionIniciada) {
+      this.reiniciarRelojSeguridad();
+    }
+  }
+
+  // ✨ AÑADIDO: Función para resetear la "bomba de relojería"
+  reiniciarRelojSeguridad() {
+    if (this.temporizadorSesion) {
+      clearTimeout(this.temporizadorSesion);
+    }
+    
+    // 15 minutos de margen desde el ÚLTIMO movimiento
+    this.temporizadorSesion = setTimeout(() => {
+      alert("⏱️ Sesión caducada por inactividad (Normativa RGPD). Por seguridad, vuelve a identificarte.");
+      this.finalizarSesion();
+    }, 900000); 
+  }
 
   iniciarSesion() {
     this.cargando = true; 
-    console.log("⏳ Iniciando petición de login..."); // Chivato en consola
-
     const paqueteDatos = { usuario: this.usuario, password: this.password };
 
     this.http.post('https://medicloud-backend-tuug.onrender.com/api/login', paqueteDatos).subscribe({
@@ -33,32 +55,21 @@ export class App {
         localStorage.setItem('token_medicloud', respuestaDelServidor.token);
         this.sesionIniciada = true; 
         this.cargando = false; 
-        console.log("✅ Login exitoso. Respuesta:", respuestaDelServidor);
         
-        // ⏱️ AÑADIDO 2: Activamos la bomba de relojería (15 minutos)
-        // 15 minutos * 60 segundos * 1000 milisegundos = 900000 ms
-        this.temporizadorSesion = setTimeout(() => {
-          alert("⏱️ Por seguridad, tu sesión ha caducado por inactividad. Vuelve a iniciar sesión.");
-          this.finalizarSesion();
-        }, 900000);
+        // ✨ Iniciamos el reloj por primera vez
+        this.reiniciarRelojSeguridad();
 
-        this.cdr.detectChanges(); // Forzamos actualización visual
+        this.cdr.detectChanges(); 
       },
       error: (errorDelServidor) => {
         this.cargando = false; 
-        this.cdr.detectChanges(); // Forzamos actualización visual
+        this.cdr.detectChanges(); 
         
-        // Comprobamos si el error es por nuestro Rate Limit (fuerza bruta)
         if (errorDelServidor.status === 429) {
-          alert('⛔ DEMASIADOS INTENTOS: Por seguridad, tu IP ha sido bloqueada. Inténtalo más tarde.');
+          alert('⛔ DEMASIADOS INTENTOS: IP bloqueada temporalmente.');
         } else {
-          alert('⛔ ERROR: ' + (errorDelServidor.error?.error || 'Usuario o contraseña incorrectos'));
+          alert('⛔ ERROR: ' + (errorDelServidor.error?.error || 'Credenciales incorrectas'));
         }
-      },
-      complete: () => {
-        // Por si acaso la petición termina pero no entra ni en next ni en error
-        this.cargando = false;
-        this.cdr.detectChanges();
       }
     });
   }
@@ -68,13 +79,12 @@ export class App {
     this.usuario = '';
     this.password = '';
     
-    // ⏱️ AÑADIDO 3: Borramos el token y apagamos el reloj si cierra sesión manualmente
     localStorage.removeItem('token_medicloud'); 
     if (this.temporizadorSesion) {
       clearTimeout(this.temporizadorSesion);
     }
 
-    console.log("🔒 Sesión finalizada en App");
+    console.log("🔒 Sesión finalizada y temporizador destruido");
     this.cdr.detectChanges();
   }
 }
