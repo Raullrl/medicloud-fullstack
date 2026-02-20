@@ -1,407 +1,162 @@
-/* ... (Todo el CSS anterior se mantiene igual hasta llegar a la parte de los badges al final) ... */
+:root {
+    --primary: #2563eb;
+    --primary-hover: #1d4ed8;
+    --dark-bg: #0f172a;
+    --card-bg: rgba(255, 255, 255, 0.9);
+    --text-main: #1e293b;
+    --text-muted: #64748b;
+    --danger: #ef4444;
+    --warning: #f59e0b;
+    --success: #10b981;
+    --glass-border: rgba(255, 255, 255, 0.2);
+}
 
-/* ... (mantén todo el CSS de la cabecera, botones, grid, etc. que ya tenías) ... */
+body {
+    background-color: #f1f5f9;
+    background-image: radial-gradient(#cbd5e1 0.5px, transparent 0.5px);
+    background-size: 24px 24px;
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+}
+
+/* --- HEADER PREMIUM --- */
 .dashboard-header {
-    background-color: #000000; /* Negro para fusionar el logo */
-    border-bottom: 2px solid #1e293b;
-    padding: 15px 40px;
-    box-shadow: 0 4px 10px rgba(0,0,0,0.1);
-}
-
-.header-content {
-    max-width: 1400px;
-    margin: 0 auto;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-}
-
-.brand {
-    display: flex;
-    align-items: center;
-    gap: 20px;
+    background: var(--dark-bg);
+    backdrop-filter: blur(10px);
+    border-bottom: 1px solid rgba(255,255,255,0.1);
+    padding: 12px 40px;
+    position: sticky;
+    top: 0;
+    z-index: 1000;
 }
 
 .header-logo {
-    width: 120px;      /* Tamaño ideal para barra de navegación */
-    height: auto;
-    transition: transform 0.3s ease;
-}
-
-.header-logo:hover {
-    transform: scale(1.05); /* Efecto sutil al pasar el ratón */
+    width: 130px;
+    filter: drop-shadow(0 0 8px rgba(37, 99, 235, 0.3));
 }
 
 .header-text-container h1 {
-    color: #ffffff;
-    font-size: 20px;
-    margin: 0 0 4px 0;
-    font-weight: 700;
+    font-size: 1.2rem;
+    letter-spacing: -0.5px;
 }
 
 .success-msg {
-    color: #38bdf8; /* Azul claro ciberseguridad */
-    font-size: 13px;
-    margin: 0;
-    font-weight: 500;
+    background: rgba(56, 189, 248, 0.1);
+    padding: 2px 8px;
+    border-radius: 4px;
+    display: inline-block;
 }
 
-.header-actions {
-    display: flex;
-    gap: 12px;
+/* --- ACCIONES --- */
+.btn-admin, .btn-boveda, .btn-logout, .btn-alta {
+    border-radius: 8px;
+    padding: 10px 20px;
+    font-size: 0.9rem;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-.btn-admin, .btn-boveda, .btn-logout {
-    padding: 10px 16px;
-    border-radius: 6px;
-    font-weight: 600;
-    font-size: 14px;
-    cursor: pointer;
-    border: none;
-    transition: all 0.2s;
-}
+.btn-admin { background: #334155; border: 1px solid rgba(255,255,255,0.1); }
+.btn-admin:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.3); }
 
-.btn-admin { background-color: #334155; color: #f8fafc; border: 1px solid #475569; }
-.btn-admin:hover { background-color: #475569; }
+.btn-logout { background: transparent; border: 1px solid rgba(239, 68, 68, 0.3); color: #fca5a5; }
+.btn-logout:hover { background: var(--danger); color: white; }
 
-.btn-boveda { background-color: #064e3b; color: #d1fae5; border: 1px solid #059669; }
-.btn-boveda:hover { background-color: #047857; }
-
-.btn-logout { background-color: #7f1d1d; color: #fecaca; border: 1px solid #991b1b; }
-.btn-logout:hover { background-color: #991b1b; }
-
-.dashboard-main {
-    max-width: 1400px;
-    margin: 0 auto;
-    padding: 32px 40px;
-}
+/* --- MAIN & SEARCH --- */
+.dashboard-main { padding: 40px; }
 
 .search-container {
-    margin-bottom: 32px;
-    display: flex;
-    justify-content: center;
+    background: white;
+    padding: 20px;
+    border-radius: 16px;
+    box-shadow: 0 10px 25px -5px rgba(0,0,0,0.05);
+    margin-bottom: 40px;
 }
 
 .search-input {
-    width: 100%;
-    max-width: 600px;
-    padding: 14px 20px;
-    border-radius: 8px;
-    border: 1px solid #cbd5e1;
-    font-size: 15px;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.02);
-    transition: all 0.2s;
+    border: 2px solid #f1f5f9;
+    background: #f8fafc;
+    font-size: 1rem;
 }
 
-.search-input:focus {
-    outline: none;
-    border-color: #2563eb;
-    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
-}
-
+/* --- CARPETAS GRID --- */
 .carpetas-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-    gap: 24px;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 30px;
 }
 
 .carpeta-card {
-    background: white;
-    border: 1px solid #e2e8f0;
-    border-radius: 12px;
-    padding: 24px;
-    box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);
-    transition: all 0.2s ease;
-    display: flex;
-    flex-direction: column;
+    background: var(--card-bg);
+    border: 1px solid white;
+    backdrop-filter: blur(5px);
+    border-radius: 20px;
+    padding: 30px;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.03);
+    position: relative;
+    overflow: hidden;
+}
+
+.carpeta-card::before {
+    content: "";
+    position: absolute;
+    top: 0; left: 0; width: 100%; height: 5px;
+    background: var(--primary);
+    opacity: 0.1;
 }
 
 .carpeta-card:hover {
-    transform: translateY(-4px);
-    box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1);
-    border-color: #cbd5e1;
+    transform: translateY(-8px);
+    box-shadow: 0 20px 40px rgba(0,0,0,0.08);
 }
 
-/* 📁 EMOJI DE CARPETA GIGANTE */
-.emoji-icon {
-    font-size: 42px;
-    margin-bottom: 12px;
-    line-height: 1;
-}
-
-/* 🔒 EMOJI DE CANDADO GIGANTE */
-.emoji-icon-large {
-    font-size: 72px;
-    margin-bottom: 20px;
-    line-height: 1;
-}
-
-.carpeta-card h3 { margin: 0 0 16px 0; color: #0f172a; font-size: 18px; }
-
-.card-details { margin-bottom: 24px; flex-grow: 1; }
-.card-details p { margin: 0 0 8px 0; font-size: 14px; color: #334155; }
-
-.ruta-texto {
-    font-family: monospace;
-    color: #64748b;
-    background: #f8fafc;
-    padding: 4px 8px;
-    border-radius: 4px;
-    word-break: break-all;
-}
+.emoji-icon { font-size: 3rem; filter: drop-shadow(0 4px 6px rgba(0,0,0,0.1)); }
 
 .btn-abrir {
-    width: 100%;
-    padding: 12px;
-    background-color: #2563eb;
-    color: white;
+    background: linear-gradient(135deg, var(--primary) 0%, #1e40af 100%);
+    box-shadow: 0 4px 12px rgba(37, 99, 235, 0.2);
+}
+
+/* --- PANEL ADMIN --- */
+.admin-panel {
+    border-radius: 20px;
     border: none;
-    border-radius: 6px;
-    cursor: pointer;
-    font-weight: 600;
-    transition: background-color 0.2s;
+    box-shadow: 0 20px 50px rgba(0,0,0,0.1);
 }
 
-.btn-abrir:hover { background-color: #1d4ed8; }
-
-.loading-state { text-align: center; padding: 60px 20px; }
-
-.spinner {
-    border: 4px solid #f3f3f3;
-    border-top: 4px solid #2563eb;
-    border-radius: 50%;
-    width: 40px;
-    height: 40px;
-    animation: spin 1s linear infinite;
-    margin: 0 auto 20px auto;
+.admin-header {
+    background: var(--dark-bg);
+    color: white;
+    padding: 40px;
 }
 
-@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+.admin-header h2 { color: white; font-size: 1.8rem; }
 
-.loading-title { color: #334155; font-size: 18px; font-weight: 600; margin-bottom: 8px; }
-.loading-subtitle { color: #64748b; font-size: 14px; }
-
-.empty-state { grid-column: 1 / -1; text-align: center; padding: 60px; color: #64748b; font-size: 16px; }
-
-.restricted-state {
-    grid-column: 1 / -1;
-    background: #fff1f2;
-    border: 1px solid #fecaca;
-    border-radius: 12px;
-    padding: 48px;
-    text-align: center;
-    max-width: 800px;
-    margin: 0 auto;
+.modern-table th {
+    background: #f8fafc;
+    color: var(--text-muted);
+    font-weight: 800;
+    padding: 20px 32px;
 }
 
-.restricted-state h2 { color: #991b1b; margin: 0 0 16px 0; font-size: 24px; }
-.restricted-state p { color: #7f1d1d; font-size: 15px; line-height: 1.6; margin-bottom: 12px; }
-
-.admin-panel { background: white; border-radius: 12px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); border: 1px solid #e2e8f0; overflow: hidden; }
-.admin-header { padding: 24px 32px; border-bottom: 1px solid #e2e8f0; background: #f8fafc; }
-.admin-header h2 { margin: 0 0 8px 0; color: #0f172a; font-size: 20px; }
-.admin-header p { margin: 0; color: #64748b; font-size: 14px; }
-.table-container { overflow-x: auto; }
-.modern-table { width: 100%; border-collapse: collapse; text-align: left; }
-.modern-table th { background-color: #ffffff; padding: 16px 32px; font-weight: 600; color: #475569; font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 2px solid #e2e8f0; }
-.modern-table td { padding: 16px 32px; border-bottom: 1px solid #e2e8f0; color: #334155; font-size: 14px; }
-.modern-table tr:hover td { background-color: #f8fafc; }
-.text-muted { color: #64748b; }
-.text-center { text-align: center; }
-
-/* ESTILOS DE LOS BADGES (ROLES) MODIFICADOS */
+/* --- BADGES --- */
 .badge {
-    background: #f1f5f9; /* Color gris por defecto para roles normales */
-    color: #475569;
-    padding: 4px 12px;
-    border-radius: 9999px;
-    font-size: 12px;
-    font-weight: 700;
-    letter-spacing: 0.5px;
+    padding: 6px 14px;
+    text-transform: uppercase;
+    font-size: 10px;
 }
 
-/* Rojo intenso para SysAdmin */
-.badge-sysadmin {
-    background: #fef2f2;
-    color: #dc2626;
-    border: 1px solid #fecaca;
-}
-
-/* Azul/Púrpura corporativo para Gerencia */
-.badge-gerencia {
-    background: #eff6ff;
-    color: #2563eb;
-    border: 1px solid #bfdbfe;
-}
-
-/* Naranja para roles técnicos (DBA, Soporte) */
-.badge-tecnico {
-    background: #fff7ed;
-    color: #ea580c;
-    border: 1px solid #ffedd5;
-}
-
-.status-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background-color: #22c55e; margin-right: 8px; }
-.status-dot.blocked { background-color: #ef4444; }
-
-/* ==========================================================
-   ✨ NUEVOS ESTILOS PARA LA GESTIÓN DE USUARIOS (ALTA Y BLOQUEO) 
-   ========================================================== */
-
-/* Botón de Alta Empleado en el Header */
-.btn-alta {
-  background-color: #2563eb;
-  color: white;
-  border: none;
-  padding: 10px 18px;
-  border-radius: 8px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: background-color 0.2s;
-}
-.btn-alta:hover { background-color: #1d4ed8; }
-
-/* Botones en la tabla de acciones */
-.btn-bloq {
-  background: #fee2e2;
-  color: #dc2626;
-  border: 1px solid #fecaca;
-  padding: 6px 14px;
-  border-radius: 6px;
-  cursor: pointer;
-  font-size: 13px;
-  font-weight: 700;
-  transition: all 0.2s;
-}
-.btn-bloq:hover { background: #fca5a5; }
-
-.btn-act {
-  background: #dcfce7;
-  color: #16a34a;
-  border: 1px solid #bbf7d0;
-  padding: 6px 14px;
-  border-radius: 6px;
-  cursor: pointer;
-  font-size: 13px;
-  font-weight: 700;
-  transition: all 0.2s;
-}
-.btn-act:hover { background: #86efac; }
-
-/* Overlay del Modal (Fondo oscuro) */
+/* --- MODALES --- */
 .modal-overlay {
-  position: fixed;
-  top: 0; left: 0; width: 100%; height: 100%;
-  background: rgba(0, 0, 0, 0.75);
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  z-index: 9999;
+    backdrop-filter: blur(8px);
+    background: rgba(15, 23, 42, 0.6);
 }
 
-/* Caja blanca del formulario */
 .modal-content {
-  background: white;
-  padding: 30px 40px;
-  border-radius: 12px;
-  width: 100%;
-  max-width: 450px;
-  text-align: left;
-  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+    border-radius: 24px;
+    border: 1px solid var(--glass-border);
+    animation: modalSlide 0.4s ease-out;
 }
 
-/* Campos del formulario */
-.form-group { margin-bottom: 20px; }
-.form-group label {
-  display: block;
-  font-size: 13px;
-  font-weight: 700;
-  color: #475569;
-  margin-bottom: 8px;
-}
-.form-group input, .form-group select {
-  width: 100%;
-  padding: 12px;
-  border: 1px solid #cbd5e1;
-  border-radius: 8px;
-  font-size: 14px;
-  color: #0f172a;
-  background-color: #f8fafc;
-}
-.form-group input:focus, .form-group select:focus {
-  outline: none;
-  border-color: #3b82f6;
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
-}
-
-/* Botones dentro del Modal */
-.modal-actions {
-  display: flex;
-  gap: 15px;
-  margin-top: 30px;
-}
-.btn-cancel {
-  flex: 1;
-  padding: 12px;
-  background: #f1f5f9;
-  color: #475569;
-  border: 1px solid #cbd5e1;
-  border-radius: 8px;
-  cursor: pointer;
-  font-weight: 700;
-}
-.btn-cancel:hover { background: #e2e8f0; }
-
-.btn-save {
-  flex: 2;
-  padding: 12px;
-  background: #2563eb;
-  color: white;
-  border: none;
-  border-radius: 8px;
-  cursor: pointer;
-  font-weight: 700;
-}
-.btn-save:hover { background: #1d4ed8; }
-
-/* ... (Se mantiene todo tu CSS anterior igual) ... */
-
-/* Copia esto al final de tu dashboard.css */
-
-.btn-save:disabled {
-  background-color: #94a3b8;
-  cursor: not-allowed;
-  opacity: 0.7;
-}
-
-input[type="file"]::file-selector-button {
-  background-color: #e2e8f0;
-  color: #475569;
-  border: 1px solid #cbd5e1;
-  padding: 5px 10px;
-  border-radius: 4px;
-  cursor: pointer;
-  font-weight: 600;
-  margin-right: 10px;
-}
-
-input[type="file"]::file-selector-button:hover {
-  background-color: #cbd5e1;
-}
-
-/* Mejora sutil para las tarjetas críticas */
-.carpeta-card:has(.emoji-icon:contains('🚨')) {
-  border-left: 4px solid #ef4444;
-}
-
-.ruta-texto {
-    font-family: 'Courier New', Courier, monospace;
-    font-size: 11px !important;
-    background: #f1f5f9;
-    padding: 5px;
-    border-radius: 4px;
-    color: #64748b;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+@keyframes modalSlide {
+    from { transform: translateY(30px); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
 }

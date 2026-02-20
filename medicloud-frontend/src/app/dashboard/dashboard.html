@@ -4,16 +4,18 @@
       <img src="assets/logo-medicloud.jpg" alt="Logo MediCloud" class="header-logo">
       <div class="header-text-container">
         <h1>Repositorio Documental Corporativo</h1>
-        <p class="success-msg">Verificado: {{ nombreUsuario | titlecase }} | {{ mensajeServidor }}</p>
+        <p class="success-msg">
+          <span style="opacity: 0.7;">Sesión Activa:</span> {{ nombreUsuario | titlecase }}
+        </p>
       </div>
     </div>
 
     <div class="header-actions">
       @if (esAdmin) {
         @if (vistaActual === 'boveda') {
-          <button class="btn-admin" (click)="cambiarVista('admin')">Panel de Administración</button>
+          <button class="btn-admin" (click)="cambiarVista('admin')">⚙️ Panel de Control</button>
         } @else {
-          <button class="btn-boveda" (click)="cambiarVista('boveda')">Volver al Repositorio</button>
+          <button class="btn-boveda" (click)="cambiarVista('boveda')">📂 Ver Bóveda</button>
         }
       }
       <button class="btn-logout" (click)="cerrarSesion()">Cerrar Sesión</button>
@@ -22,60 +24,67 @@
 </div>
 
 <div class="dashboard-main">
+  
   @if (vistaActual === 'boveda') {
-    <div class="search-container" style="display: flex; gap: 15px; justify-content: center; align-items: center;">
-      <input 
-        type="text" 
-        class="search-input"
-        placeholder="Buscar expediente..." 
-        (input)="buscarCarpeta($any($event.target).value)"
-        style="flex: 1; max-width: 600px;">
-      
-      @if (!tieneAccesoTotal) {
-        @if (!carpetaActual) {
-          <button class="btn-alta" (click)="mostrarModalCarpeta = true" style="background: #f59e0b; border-color: #f59e0b;">+ Nueva Carpeta</button>
+    
+    <div class="search-container">
+      <div style="display: flex; gap: 15px; align-items: center; max-width: 1200px; margin: 0 auto;">
+        <input 
+          type="text" 
+          class="search-input"
+          placeholder="  Buscar expedientes o pacientes..." 
+          (input)="buscarCarpeta($any($event.target).value)"
+          style="flex: 1;">
+        
+        @if (!tieneAccesoTotal) {
+          @if (!carpetaActual) {
+            <button class="btn-alta" (click)="mostrarModalCarpeta = true" style="background: var(--warning); border: none; color: white;">+ Nueva Carpeta</button>
+          }
+          <button class="btn-alta" (click)="abrirModalSubida()">+ Subir Expediente</button>
         }
-        <button class="btn-alta" (click)="abrirModalSubida()">+ Subir Documento</button>
-      }
+      </div>
     </div>
 
     @if (cargandoBoveda) {
       <div class="loading-state">
         <div class="spinner"></div>
-        <p class="loading-title">Sincronizando con el servidor...</p>
+        <p class="loading-title">Cifrando conexión...</p>
+        <p class="loading-subtitle">Sincronizando con el nodo de Aiven</p>
       </div>
     } 
     @else {
+      
       @if (!carpetaActual) {
-        <h2 style="margin-left: 20px; color: #1e293b;">Directorios Disponibles</h2>
+        <h2 style="margin-bottom: 24px; color: var(--text-main); font-weight: 700;">Directorios Disponibles</h2>
         
         <div class="carpetas-grid">
           @for (carpeta of misCarpetas; track carpeta.id_carpeta) {
-            <div class="carpeta-card" (click)="entrarCarpeta(carpeta)" style="cursor: pointer; border-top: 4px solid #f59e0b; transition: transform 0.2s;">
+            <div class="carpeta-card" (click)="entrarCarpeta(carpeta)" style="cursor: pointer;">
               <div class="emoji-icon">📁</div>
               <h3>{{ carpeta.nombre }}</h3>
               <div class="card-details">
-                <p><strong>Propietario:</strong> {{ carpeta.cliente || 'Interno' }}</p>
+                <p><strong style="color: var(--primary);">Propiedad:</strong> {{ carpeta.cliente || 'Corporativo' }}</p>
               </div>
               <div style="display: flex; gap: 8px; margin-top: 15px;">
-                <button class="btn-abrir" style="background: #f59e0b; color: white; flex: 1;">Abrir</button>
-                
+                <button class="btn-abrir" style="flex: 1;">Abrir Carpeta</button>
                 @if (!tieneAccesoTotal) {
-                  <button (click)="eliminarCarpeta(carpeta, $event)" title="Eliminar Carpeta" style="background: #ef4444; color: white; border: none; border-radius: 6px; padding: 0 15px; cursor: pointer;">🗑️</button>
+                  <button (click)="eliminarCarpeta(carpeta, $event)" title="Borrar" style="background: #fee2e2; color: var(--danger); border: none; border-radius: 8px; padding: 0 15px; cursor: pointer;">🗑️</button>
                 }
               </div>
             </div>
           } @empty {
-            <div class="empty-state"><p>No hay directorios creados.</p></div>
+            <div class="empty-state">
+              <p>No se han encontrado directorios asociados a su identidad corporativa.</p>
+            </div>
           }
         </div>
 
       } @else {
         
-        <div style="margin: 0 20px 20px 20px; display: flex; align-items: center; gap: 15px; background: white; padding: 15px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
-          <button class="btn-cancel" (click)="volverACarpetas()" style="margin: 0; background: #e2e8f0; color: #475569; border: none; padding: 8px 15px; border-radius: 6px; cursor:pointer;">⬅ Volver</button>
-          <h2 style="margin: 0; color: #1e293b; display: flex; align-items: center; gap: 10px;">
-            📁 {{ carpetaActual.nombre }}
+        <div style="margin-bottom: 30px; display: flex; align-items: center; gap: 20px;">
+          <button class="btn-cancel" (click)="volverACarpetas()" style="margin: 0; padding: 10px 20px;">⬅ Volver</button>
+          <h2 style="margin: 0; color: var(--text-main);">
+            <span style="color: var(--text-muted); font-weight: 300;">Explorando:</span> {{ carpetaActual.nombre }}
           </h2>
         </div>
 
@@ -83,22 +92,24 @@
           @for (doc of documentosDeCarpeta; track $index) {
             <div class="carpeta-card">
               <div class="emoji-icon">{{ doc.nivel_criticidad === 'CRÍTICO' ? '🚨' : '📄' }}</div>
-              <h3>{{ doc.nombre_carpeta || 'Documento Confidencial' }}</h3>
+              <h3>{{ doc.nombre_carpeta || 'Archivo Cifrado' }}</h3>
               <div class="card-details">
-                <p><strong>Tipo:</strong> Documento Cifrado</p>
-                <p><strong>Seguridad:</strong> <span [style.color]="doc.nivel_criticidad === 'CRÍTICO' ? '#dc2626' : '#2563eb'">{{ doc.nivel_criticidad }}</span></p>
+                <p><strong>Seguridad:</strong> 
+                  <span [style.color]="doc.nivel_criticidad === 'CRÍTICO' ? 'var(--danger)' : 'var(--primary)'" style="font-weight: 700;">
+                    {{ doc.nivel_criticidad }}
+                  </span>
+                </p>
+                <p style="font-size: 11px; opacity: 0.6; font-family: monospace;">ID_NODE: {{ doc.id_documento }}</p>
               </div>
               <div style="display: flex; gap: 8px; margin-top: 15px;">
-                
-                <button class="btn-abrir" (click)="abrirDocumento(doc)" style="flex: 1;">Ver Archivo</button>
-                
+                <button class="btn-abrir" (click)="abrirDocumento(doc)" style="flex: 1;">Ver Documento</button>
                 @if (!tieneAccesoTotal) {
-                  <button (click)="eliminarDocumento(doc)" title="Eliminar Documento" style="background: #ef4444; color: white; border: none; border-radius: 6px; padding: 0 15px; cursor: pointer;">🗑️</button>
+                  <button (click)="eliminarDocumento(doc)" title="Eliminar permanentemente" style="background: #fee2e2; color: var(--danger); border: none; border-radius: 8px; padding: 0 15px; cursor: pointer;">🗑️</button>
                 }
               </div>
             </div>
           } @empty {
-            <div class="empty-state"><p>Esta carpeta está vacía.</p></div>
+            <div class="empty-state"><p>Este directorio no contiene documentos digitales actualmente.</p></div>
           }
         </div>
       }
@@ -107,57 +118,62 @@
 
   @else {
     <div class="admin-panel">
-      <div class="admin-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px;">
-        <div>
-          <h2>Control Central de Seguridad</h2>
-          <p>Selecciona una opción para administrar el sistema.</p>
+      <div class="admin-header">
+        <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+          <div>
+            <h2>Centro de Control de Identidad</h2>
+            <p>Auditoría y gestión de acceso para MediCloud</p>
+          </div>
+          
+          <div style="display: flex; gap: 10px; background: rgba(255,255,255,0.1); padding: 5px; border-radius: 12px;">
+            <button class="btn-nav" [class.active]="subVistaAdmin === 'usuarios'" (click)="cambiarSubVistaAdmin('usuarios')">👥 Usuarios</button>
+            <button class="btn-nav" [class.active]="subVistaAdmin === 'auditoria'" (click)="cambiarSubVistaAdmin('auditoria')">🛡️ Auditoría</button>
+          </div>
         </div>
-        
-        <div style="display: flex; gap: 10px; background: #f1f5f9; padding: 5px; border-radius: 8px;">
-          <button [style.background]="subVistaAdmin === 'usuarios' ? 'white' : 'transparent'" [style.box-shadow]="subVistaAdmin === 'usuarios' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none'" style="border: none; padding: 10px 20px; border-radius: 6px; font-weight: 600; cursor: pointer; color: #1e293b;" (click)="cambiarSubVistaAdmin('usuarios')">
-            👥 Identidades
-          </button>
-          <button [style.background]="subVistaAdmin === 'auditoria' ? 'white' : 'transparent'" [style.box-shadow]="subVistaAdmin === 'auditoria' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none'" style="border: none; padding: 10px 20px; border-radius: 6px; font-weight: 600; cursor: pointer; color: #1e293b;" (click)="cambiarSubVistaAdmin('auditoria')">
-            🛡️ Visor Forense
-          </button>
-        </div>
-
-        @if (subVistaAdmin === 'usuarios') {
-          <button class="btn-alta" (click)="mostrarModalAlta = true">+ Nuevo Empleado</button>
-        }
       </div>
 
       <div class="table-container">
         
         @if (subVistaAdmin === 'usuarios') {
+          <div style="padding: 20px; display: flex; justify-content: flex-end;">
+            <button class="btn-alta" (click)="mostrarModalAlta = true">+ Registrar Nuevo Empleado</button>
+          </div>
           <table class="modern-table">
             <thead>
               <tr>
                 <th>ID</th>
                 <th>Usuario</th>
-                <th>Correo Electrónico</th>
                 <th>Privilegios</th>
                 <th>Estado</th>
-                <th>Acciones de Gestión</th> 
+                <th style="text-align: right;">Acciones de Seguridad</th> 
               </tr>
             </thead>
             <tbody>
               @for (usuario of listaUsuarios; track usuario.id_usuario) {
                 <tr>
-                  <td>{{ usuario.id_usuario }}</td>
-                  <td><strong>{{ usuario.nombre_usuario }}</strong></td>
-                  <td class="text-muted">{{ usuario.email }}</td>
-                  <td><span class="badge">{{ usuario.nombre_rol }}</span></td>
+                  <td>#{{ usuario.id_usuario }}</td>
+                  <td>
+                    <div style="font-weight: 700;">{{ usuario.nombre_usuario }}</div>
+                    <div style="font-size: 12px; color: var(--text-muted);">{{ usuario.email }}</div>
+                  </td>
+                  <td>
+                    <span class="badge" 
+                      [class.badge-sysadmin]="usuario.id_rol === 3" 
+                      [class.badge-gerencia]="usuario.id_rol === 1"
+                      [class.badge-tecnico]="usuario.id_rol === 4">
+                      {{ usuario.nombre_rol }}
+                    </span>
+                  </td>
                   <td>
                     <span class="status-dot" [class.blocked]="usuario.estado === 'Bloqueado'"></span>
                     {{ usuario.estado || 'Activo' }}
                   </td>
-                  <td style="display: flex; gap: 5px;">
-                    <button [class]="usuario.estado === 'Bloqueado' ? 'btn-act' : 'btn-bloq'" (click)="toggleEstado(usuario)" style="padding: 5px 10px; font-size: 12px;">
-                      {{ usuario.estado === 'Bloqueado' ? 'Desbloquear' : 'Bloquear' }}
+                  <td style="text-align: right; display: flex; gap: 8px; justify-content: flex-end;">
+                    <button [class]="usuario.estado === 'Bloqueado' ? 'btn-act' : 'btn-bloq'" (click)="toggleEstado(usuario)">
+                      {{ usuario.estado === 'Bloqueado' ? 'Activar' : 'Bloquear' }}
                     </button>
-                    <button title="Resetear Contraseña" (click)="resetearPassword(usuario)" style="background: #3b82f6; color: white; border: none; border-radius: 4px; padding: 5px 10px; cursor: pointer;">🔑</button>
-                    <button title="Eliminar Usuario" (click)="eliminarUsuario(usuario)" style="background: #ef4444; color: white; border: none; border-radius: 4px; padding: 5px 10px; cursor: pointer;">🗑️</button>
+                    <button title="Reset Clave" (click)="resetearPassword(usuario)" style="background: #f1f5f9; border: 1px solid #cbd5e1; border-radius: 6px; padding: 5px 10px; cursor: pointer;">🔑</button>
+                    <button title="Eliminar" (click)="eliminarUsuario(usuario)" style="background: #fee2e2; border: 1px solid #fecaca; border-radius: 6px; padding: 5px 10px; cursor: pointer;">🗑️</button>
                   </td>
                 </tr>
               }
@@ -166,30 +182,25 @@
         }
 
         @if (subVistaAdmin === 'auditoria') {
-          <table class="modern-table" style="font-family: monospace; font-size: 13px;">
-            <thead>
-              <tr style="background: #1e293b; color: white;">
-                <th>ID Log</th>
-                <th>Marca de Tiempo (Timestamp)</th>
-                <th>Identidad (Email)</th>
-                <th>Acción Registrada</th>
+          <table class="modern-table">
+            <thead style="background: #1e293b; color: white;">
+              <tr>
+                <th>TIMESTAMP</th>
+                <th>IDENTIDAD</th>
+                <th>ACCIÓN REGISTRADA</th>
               </tr>
             </thead>
-            <tbody>
+            <tbody style="font-family: 'Courier New', monospace; font-size: 13px;">
               @for (log of logsAuditoria; track log.id_registro) {
                 <tr>
-                  <td style="color: #64748b;">#{{ log.id_registro }}</td>
-                  <td style="color: #3b82f6;">{{ log.fecha_accion | date:'dd/MM/yyyy HH:mm:ss' }}</td>
+                  <td style="color: var(--primary);">{{ log.fecha_accion | date:'dd/MM/yyyy HH:mm:ss' }}</td>
                   <td><strong>{{ log.usuario_email }}</strong></td>
-                  <td><span style="background: #f1f5f9; padding: 3px 8px; border-radius: 4px;">{{ log.accion_realizada }}</span></td>
+                  <td><span style="background: #f1f5f9; padding: 4px 10px; border-radius: 4px; border: 1px solid #e2e8f0;">{{ log.accion_realizada }}</span></td>
                 </tr>
-              } @empty {
-                <tr><td colspan="4" style="text-align: center; padding: 20px;">No hay registros de auditoría disponibles.</td></tr>
               }
             </tbody>
           </table>
         }
-
       </div>
     </div>
   }
@@ -197,17 +208,15 @@
 
 @if (mostrarModalCarpeta) {
   <div class="modal-overlay">
-    <div class="modal-content" style="max-width: 400px;">
-      <h3 style="margin-top: 0; margin-bottom: 20px;">Crear Nuevo Directorio</h3>
+    <div class="modal-content">
+      <h3 style="margin-bottom: 25px;">Crear Directorio Seguro</h3>
       <div class="form-group">
         <label>Nombre de la Carpeta</label>
-        <input type="text" [(ngModel)]="nuevaCarpetaNombre" placeholder="Ej: Facturas 2026">
+        <input type="text" [(ngModel)]="nuevaCarpetaNombre" placeholder="Ej: Historiales 2026">
       </div>
       <div class="modal-actions">
-        <button class="btn-cancel" (click)="mostrarModalCarpeta = false" [disabled]="creandoCarpeta">Cancelar</button>
-        <button class="btn-save" (click)="crearCarpeta()" [disabled]="creandoCarpeta">
-          {{ creandoCarpeta ? 'Creando...' : 'Crear Carpeta' }}
-        </button>
+        <button class="btn-cancel" (click)="mostrarModalCarpeta = false">Cancelar</button>
+        <button class="btn-save" (click)="crearCarpeta()">Crear Carpeta</button>
       </div>
     </div>
   </div>
@@ -216,11 +225,10 @@
 @if (mostrarModalUpload) {
   <div class="modal-overlay">
     <div class="modal-content">
-      <h3 style="margin-top: 0; margin-bottom: 20px;">Cargar Nuevo Expediente</h3>
+      <h3 style="margin-bottom: 25px;">Subida de Documento Cifrado</h3>
       <div class="form-group">
-        <label>Carpeta de Destino</label>
+        <label>Carpeta Destino</label>
         <select [(ngModel)]="nuevoDoc.id_carpeta">
-          <option value="" disabled selected>Seleccione una carpeta...</option>
           @for (c of misCarpetas; track c.id_carpeta) {
             <option [value]="c.id_carpeta">{{ c.nombre }}</option>
           }
@@ -228,24 +236,24 @@
       </div>
       <div class="form-group">
         <label>Nombre del Documento</label>
-        <input type="text" [(ngModel)]="nuevoDoc.nombre" placeholder="Ej: Contrato_Sanitas_2024">
+        <input type="text" [(ngModel)]="nuevoDoc.nombre" placeholder="Nombre descriptivo...">
       </div>
       <div class="form-group">
-        <label>Nivel de Criticidad</label>
+        <label>Criticidad GRPD</label>
         <select [(ngModel)]="nuevoDoc.criticidad">
-          <option value="NORMAL">NORMAL</option>
-          <option value="ALTO">ALTO</option>
-          <option value="CRÍTICO">CRÍTICO</option>
+          <option value="NORMAL">NIVEL 1: NORMAL</option>
+          <option value="ALTO">NIVEL 2: ALTO</option>
+          <option value="CRÍTICO">NIVEL 3: CRÍTICO</option>
         </select>
       </div>
       <div class="form-group">
-        <label>Archivo Físico (PDF/Imagen)</label>
-        <input type="file" (change)="onFileSelected($event)" style="padding: 10px; background: #f8fafc; border: 1px dashed #cbd5e1; border-radius: 8px;">
+        <label>Seleccionar Archivo</label>
+        <input type="file" (change)="onFileSelected($event)">
       </div>
       <div class="modal-actions">
-        <button class="btn-cancel" (click)="mostrarModalUpload = false" [disabled]="subiendo">Cancelar</button>
+        <button class="btn-cancel" (click)="mostrarModalUpload = false">Descartar</button>
         <button class="btn-save" (click)="subirArchivo()" [disabled]="subiendo">
-          {{ subiendo ? 'Cifrando y Subiendo...' : 'Guardar en Bóveda' }}
+          {{ subiendo ? 'Cifrando...' : 'Confirmar Subida' }}
         </button>
       </div>
     </div>
@@ -255,21 +263,21 @@
 @if (mostrarModalAlta) {
   <div class="modal-overlay">
     <div class="modal-content">
-      <h3 style="margin-top: 0; margin-bottom: 20px;">Alta de Identidad</h3>
-      <div class="form-group"><label>Nombre</label><input type="text" [(ngModel)]="nuevoUsuario.nombre"></div>
-      <div class="form-group"><label>Email</label><input type="email" [(ngModel)]="nuevoUsuario.email"></div>
-      <div class="form-group"><label>Contraseña</label><input type="password" [(ngModel)]="nuevoUsuario.password"></div>
+      <h3 style="margin-bottom: 25px;">Alta de Identidad</h3>
+      <div class="form-group"><label>Nombre Completo</label><input type="text" [(ngModel)]="nuevoUsuario.nombre"></div>
+      <div class="form-group"><label>Email Corporativo</label><input type="email" [(ngModel)]="nuevoUsuario.email"></div>
+      <div class="form-group"><label>Clave Provisional</label><input type="password" [(ngModel)]="nuevoUsuario.password"></div>
       <div class="form-group">
-        <label>Privilegios</label>
+        <label>Rol Asignado</label>
         <select [(ngModel)]="nuevoUsuario.id_rol">
-          <option [value]="3">SysAdmin</option>
-          <option [value]="1">Gerencia</option>
-          <option [value]="4">Administrativo</option>
+          <option [value]="3">SysAdmin (Control Total)</option>
+          <option [value]="1">Gerencia (Solo Lectura)</option>
+          <option [value]="4">Administrativo (Cliente)</option>
         </select>
       </div>
       <div class="modal-actions">
-        <button class="btn-cancel" (click)="mostrarModalAlta = false">Cancelar</button>
-        <button class="btn-save" (click)="crearUsuario()">Guardar</button>
+        <button class="btn-cancel" (click)="mostrarModalAlta = false">Cerrar</button>
+        <button class="btn-save" (click)="crearUsuario()">Dar de Alta</button>
       </div>
     </div>
   </div>
