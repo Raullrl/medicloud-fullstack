@@ -16,6 +16,14 @@
 
 @if (vistaActual === 'boveda') {
   
+  <div style="margin-bottom: 25px; display: flex; justify-content: center; margin-top: 20px;">
+    <input 
+      type="text" 
+      placeholder="🔎 Buscar expediente por nombre (Protección SQLi activada)..." 
+      style="width: 100%; max-width: 600px; padding: 12px 20px; border-radius: 8px; border: 1px solid #bce8f1; font-size: 1rem; box-shadow: 0 2px 5px rgba(0,0,0,0.05);"
+      (input)="buscarCarpeta($any($event.target).value)">
+  </div>
+
   @if (cargandoBoveda) {
     <div style="text-align: center; padding: 50px;">
       <p style="color: #666; font-size: 1.2rem; font-weight: bold;">⏳ Sincronizando con la Bóveda Segura...</p>
@@ -23,15 +31,6 @@
     </div>
   } 
   @else {
-
-    <div style="margin-bottom: 25px; display: flex; justify-content: center;">
-      <input 
-        type="text" 
-        placeholder="🔎 Buscar expediente por nombre (Protección SQLi activada)..." 
-        style="width: 100%; max-width: 600px; padding: 12px 20px; border-radius: 8px; border: 1px solid #bce8f1; font-size: 1rem; box-shadow: 0 2px 5px rgba(0,0,0,0.05);"
-        (input)="buscarCarpeta($any($event.target).value)">
-    </div>
-
     <div class="carpetas-grid">
       @for (carpeta of carpetas; track $index) {
         <div class="carpeta-card">
