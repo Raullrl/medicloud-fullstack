@@ -41,7 +41,7 @@
     @if (cargandoBoveda) {
       <div class="loading-state">
         <div class="spinner"></div>
-        <p class="loading-title">Sincronizando directorios...</p>
+        <p class="loading-title">Sincronizando con el servidor...</p>
       </div>
     } 
     @else {
@@ -56,12 +56,10 @@
               <div class="card-details">
                 <p><strong>Propietario:</strong> {{ carpeta.cliente || 'Interno' }}</p>
               </div>
-              
               <div style="display: flex; gap: 8px; margin-top: 15px;">
                 <button class="btn-abrir" style="background: #f59e0b; color: white; flex: 1;">Abrir</button>
                 <button (click)="eliminarCarpeta(carpeta, $event)" title="Eliminar Carpeta" style="background: #ef4444; color: white; border: none; border-radius: 6px; padding: 0 15px; cursor: pointer;">🗑️</button>
               </div>
-
             </div>
           } @empty {
             <div class="empty-state"><p>No hay directorios creados para tu empresa.</p></div>
@@ -86,17 +84,13 @@
                 <p><strong>Tipo:</strong> Documento Cifrado</p>
                 <p><strong>Seguridad:</strong> <span [style.color]="doc.nivel_criticidad === 'CRÍTICO' ? '#dc2626' : '#2563eb'">{{ doc.nivel_criticidad }}</span></p>
               </div>
-              
               <div style="display: flex; gap: 8px; margin-top: 15px;">
                 <button class="btn-abrir" (click)="abrirCarpeta(doc.ruta)" style="flex: 1;">Ver Archivo</button>
                 <button (click)="eliminarDocumento(doc)" title="Eliminar Documento" style="background: #ef4444; color: white; border: none; border-radius: 6px; padding: 0 15px; cursor: pointer;">🗑️</button>
               </div>
-
             </div>
           } @empty {
-            <div class="empty-state">
-              <p>Esta carpeta está vacía. Usa el botón superior para subir el primer documento.</p>
-            </div>
+            <div class="empty-state"><p>Esta carpeta está vacía.</p></div>
           }
         </div>
       }
@@ -105,45 +99,89 @@
 
   @else {
     <div class="admin-panel">
-      <div class="admin-header" style="display: flex; justify-content: space-between; align-items: center;">
+      <div class="admin-header" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px;">
         <div>
-          <h2>Control de Accesos y Auditoría</h2>
-          <p>Monitorización en tiempo real de identidades autorizadas.</p>
+          <h2>Control Central de Seguridad</h2>
+          <p>Selecciona una opción para administrar el sistema.</p>
         </div>
-        <button class="btn-alta" (click)="mostrarModalAlta = true">+ Nuevo Empleado</button>
+        
+        <div style="display: flex; gap: 10px; background: #f1f5f9; padding: 5px; border-radius: 8px;">
+          <button [style.background]="subVistaAdmin === 'usuarios' ? 'white' : 'transparent'" [style.box-shadow]="subVistaAdmin === 'usuarios' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none'" style="border: none; padding: 10px 20px; border-radius: 6px; font-weight: 600; cursor: pointer; color: #1e293b;" (click)="cambiarSubVistaAdmin('usuarios')">
+            👥 Identidades
+          </button>
+          <button [style.background]="subVistaAdmin === 'auditoria' ? 'white' : 'transparent'" [style.box-shadow]="subVistaAdmin === 'auditoria' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none'" style="border: none; padding: 10px 20px; border-radius: 6px; font-weight: 600; cursor: pointer; color: #1e293b;" (click)="cambiarSubVistaAdmin('auditoria')">
+            🛡️ Visor Forense
+          </button>
+        </div>
+
+        @if (subVistaAdmin === 'usuarios') {
+          <button class="btn-alta" (click)="mostrarModalAlta = true">+ Nuevo Empleado</button>
+        }
       </div>
 
       <div class="table-container">
-        <table class="modern-table">
-          <thead>
-            <tr>
-              <th>Identificador</th>
-              <th>Usuario del Sistema</th>
-              <th>Correo Electrónico</th>
-              <th>Privilegios</th>
-              <th>Estado</th>
-              <th>Gestión</th> </tr>
-          </thead>
-          <tbody>
-            @for (usuario of listaUsuarios; track usuario.id_usuario) {
+        
+        @if (subVistaAdmin === 'usuarios') {
+          <table class="modern-table">
+            <thead>
               <tr>
-                <td>{{ usuario.id_usuario }}</td>
-                <td><strong>{{ usuario.nombre_usuario }}</strong></td>
-                <td class="text-muted">{{ usuario.email }}</td>
-                <td><span class="badge">{{ usuario.nombre_rol }}</span></td>
-                <td>
-                  <span class="status-dot" [class.blocked]="usuario.estado === 'Bloqueado'"></span>
-                  {{ usuario.estado || 'Activo' }}
-                </td>
-                <td>
-                  <button [class]="usuario.estado === 'Bloqueado' ? 'btn-act' : 'btn-bloq'" (click)="toggleEstado(usuario)">
-                    {{ usuario.estado === 'Bloqueado' ? 'Desbloquear' : 'Bloquear' }}
-                  </button>
-                </td>
+                <th>ID</th>
+                <th>Usuario</th>
+                <th>Correo Electrónico</th>
+                <th>Privilegios</th>
+                <th>Estado</th>
+                <th>Acciones de Gestión</th> 
               </tr>
-            }
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              @for (usuario of listaUsuarios; track usuario.id_usuario) {
+                <tr>
+                  <td>{{ usuario.id_usuario }}</td>
+                  <td><strong>{{ usuario.nombre_usuario }}</strong></td>
+                  <td class="text-muted">{{ usuario.email }}</td>
+                  <td><span class="badge">{{ usuario.nombre_rol }}</span></td>
+                  <td>
+                    <span class="status-dot" [class.blocked]="usuario.estado === 'Bloqueado'"></span>
+                    {{ usuario.estado || 'Activo' }}
+                  </td>
+                  <td style="display: flex; gap: 5px;">
+                    <button [class]="usuario.estado === 'Bloqueado' ? 'btn-act' : 'btn-bloq'" (click)="toggleEstado(usuario)" style="padding: 5px 10px; font-size: 12px;">
+                      {{ usuario.estado === 'Bloqueado' ? 'Desbloquear' : 'Bloquear' }}
+                    </button>
+                    <button title="Resetear Contraseña" (click)="resetearPassword(usuario)" style="background: #3b82f6; color: white; border: none; border-radius: 4px; padding: 5px 10px; cursor: pointer;">🔑</button>
+                    <button title="Eliminar Usuario" (click)="eliminarUsuario(usuario)" style="background: #ef4444; color: white; border: none; border-radius: 4px; padding: 5px 10px; cursor: pointer;">🗑️</button>
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        }
+
+        @if (subVistaAdmin === 'auditoria') {
+          <table class="modern-table" style="font-family: monospace; font-size: 13px;">
+            <thead>
+              <tr style="background: #1e293b; color: white;">
+                <th>ID Log</th>
+                <th>Marca de Tiempo (Timestamp)</th>
+                <th>Identidad (Email)</th>
+                <th>Acción Registrada</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (log of logsAuditoria; track log.id_registro) {
+                <tr>
+                  <td style="color: #64748b;">#{{ log.id_registro }}</td>
+                  <td style="color: #3b82f6;">{{ log.fecha_accion | date:'dd/MM/yyyy HH:mm:ss' }}</td>
+                  <td><strong>{{ log.usuario_email }}</strong></td>
+                  <td><span style="background: #f1f5f9; padding: 3px 8px; border-radius: 4px;">{{ log.accion_realizada }}</span></td>
+                </tr>
+              } @empty {
+                <tr><td colspan="4" style="text-align: center; padding: 20px;">No hay registros de auditoría disponibles.</td></tr>
+              }
+            </tbody>
+          </table>
+        }
+
       </div>
     </div>
   }
@@ -153,12 +191,10 @@
   <div class="modal-overlay">
     <div class="modal-content" style="max-width: 400px;">
       <h3 style="margin-top: 0; margin-bottom: 20px;">Crear Nuevo Directorio</h3>
-      
       <div class="form-group">
         <label>Nombre de la Carpeta</label>
         <input type="text" [(ngModel)]="nuevaCarpetaNombre" placeholder="Ej: Facturas 2026">
       </div>
-      
       <div class="modal-actions">
         <button class="btn-cancel" (click)="mostrarModalCarpeta = false" [disabled]="creandoCarpeta">Cancelar</button>
         <button class="btn-save" (click)="crearCarpeta()" [disabled]="creandoCarpeta">
@@ -173,7 +209,6 @@
   <div class="modal-overlay">
     <div class="modal-content">
       <h3 style="margin-top: 0; margin-bottom: 20px;">Cargar Nuevo Expediente</h3>
-      
       <div class="form-group">
         <label>Carpeta de Destino</label>
         <select [(ngModel)]="nuevoDoc.id_carpeta">
@@ -183,12 +218,10 @@
           }
         </select>
       </div>
-
       <div class="form-group">
         <label>Nombre del Documento</label>
         <input type="text" [(ngModel)]="nuevoDoc.nombre" placeholder="Ej: Contrato_Sanitas_2024">
       </div>
-      
       <div class="form-group">
         <label>Nivel de Criticidad</label>
         <select [(ngModel)]="nuevoDoc.criticidad">
@@ -197,12 +230,10 @@
           <option value="CRÍTICO">CRÍTICO</option>
         </select>
       </div>
-      
       <div class="form-group">
         <label>Archivo Físico (PDF/Imagen)</label>
         <input type="file" (change)="onFileSelected($event)" style="padding: 10px; background: #f8fafc; border: 1px dashed #cbd5e1; border-radius: 8px;">
       </div>
-      
       <div class="modal-actions">
         <button class="btn-cancel" (click)="mostrarModalUpload = false" [disabled]="subiendo">Cancelar</button>
         <button class="btn-save" (click)="subirArchivo()" [disabled]="subiendo">

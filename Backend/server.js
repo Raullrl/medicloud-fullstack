@@ -117,7 +117,7 @@ const verificarToken = (req, res, next) => {
   if (!token) return res.status(401).json({ error: 'Acceso denegado' });
 
   jwt.verify(token, process.env.JWT_SECRET, (err, usuarioDecodificado) => {
-    if (err) return res.status(403).json({ error: 'Token inválido' });
+    if (err) return res.status(401).json({ error: 'Token inválido o caducado' }); // ✨ Cambiado a 401 para la expulsión automática
     req.usuario = usuarioDecodificado;
     next();
   });
@@ -126,15 +126,12 @@ const verificarToken = (req, res, next) => {
 app.get('/api/mis-carpetas', verificarToken, (req, res) => {
   const email = req.usuario.email || '';
   const dominio = email.split('@')[1]?.split('.')[0] || '';
-
   let sql = `SELECT c.id_carpeta, c.nombre, cl.nombre_empresa AS cliente FROM carpeta c JOIN cliente cl ON c.id_cliente = cl.id_cliente`;
   let params = [];
-
   if (req.usuario.rol !== 3 && req.usuario.rol !== 1) {
     sql += ` WHERE cl.nombre_empresa LIKE ?`;
     params.push(`%${dominio}%`);
   }
-
   db.query(sql, params, (err, results) => {
     if (err) return res.status(500).json({ error: 'Error al obtener tus carpetas' });
     res.json(results);
@@ -156,7 +153,6 @@ app.post('/api/carpetas', verificarToken, (req, res) => {
 
     db.query("INSERT INTO carpeta (id_cliente, nombre, ruta) VALUES (?, ?, ?)", [idCliente, nombre, rutaLogica], (errIns) => {
       if (errIns) return res.status(500).json({ error: 'Error en BD al crear la carpeta.' });
-      
       registrarAuditoria(req.usuario.email, req.usuario.rol, `NUEVA CARPETA CREADA: ${nombre}`);
       res.json({ mensaje: `Directorio "${nombre}" creado con éxito.` });
     });
@@ -256,27 +252,19 @@ app.post('/api/carpetas/upload', verificarToken, upload.single('archivo'), async
   } catch (e) { res.status(500).json({ error: 'Fallo en Storage: ' + e.message }); }
 });
 
-// ✨ --- RUTAS: ELIMINAR (CORREGIDAS) --- ✨
-
-// 1. Eliminar Documento (Cuidando el Log Forense)
 app.delete('/api/documentos/:id', verificarToken, (req, res) => {
   const idDoc = req.params.id;
   const ipCliente = req.headers['x-forwarded-for'] || req.ip;
 
-  // PASO 1: Desvincular el documento de los logs de acceso (para no perder la auditoría)
   db.query("UPDATE log_acceso SET id_documento = NULL WHERE id_documento = ?", [idDoc], (errLog) => {
     if (errLog) return res.status(500).json({ error: 'Error al actualizar auditoría forense.' });
 
-    // PASO 2: Borramos las versiones vinculadas
     db.query("DELETE FROM version_documento WHERE id_documento = ?", [idDoc], (errVer) => {
       if (errVer) return res.status(500).json({ error: 'Error al eliminar versiones de la BD.' });
       
-      // PASO 3: Por fin, borramos el documento principal
       db.query("DELETE FROM documento WHERE id_documento = ?", [idDoc], (errDel) => {
         if (errDel) return res.status(500).json({ error: 'Error al eliminar el documento principal.' });
-        
         registrarAuditoria(req.usuario.email, req.usuario.rol, `DOCUMENTO ELIMINADO ID: ${idDoc}`);
-        // Registramos la acción usando null porque el id_doc ya no existe
         registrarLogForense(req.usuario.id, null, ipCliente, 'DELETE_FILE', 'EXITOSO'); 
         res.json({ mensaje: 'Documento eliminado de forma segura.' });
       });
@@ -284,25 +272,21 @@ app.delete('/api/documentos/:id', verificarToken, (req, res) => {
   });
 });
 
-// 2. Eliminar Carpeta 
 app.delete('/api/carpetas/:id', verificarToken, (req, res) => {
   const idCarpeta = req.params.id;
-
   db.query("SELECT COUNT(*) AS total FROM documento WHERE id_carpeta = ?", [idCarpeta], (err, results) => {
     if (err) return res.status(500).json({ error: 'Error al verificar la carpeta.' });
-    
-    if (results[0].total > 0) {
-      return res.status(400).json({ error: 'No puedes borrar un directorio que contiene documentos. Vacíalo primero.' });
-    }
+    if (results[0].total > 0) return res.status(400).json({ error: 'No puedes borrar un directorio que contiene documentos. Vacíalo primero.' });
 
     db.query("DELETE FROM carpeta WHERE id_carpeta = ?", [idCarpeta], (errDel) => {
       if (errDel) return res.status(500).json({ error: 'Error al eliminar la carpeta.' });
-      
       registrarAuditoria(req.usuario.email, req.usuario.rol, `CARPETA ELIMINADA ID: ${idCarpeta}`);
       res.json({ mensaje: 'Directorio eliminado correctamente.' });
     });
   });
 });
+
+// ✨ --- RUTAS ADMIN AMPLIADAS --- ✨
 
 app.get('/api/admin/usuarios', verificarToken, (req, res) => {
   const ipCliente = req.headers['x-forwarded-for'] || req.ip;
@@ -333,6 +317,46 @@ app.put('/api/admin/usuarios/:id/estado', verificarToken, (req, res) => {
   db.query('UPDATE usuario SET estado = ? WHERE id_usuario = ?', [nuevoEstado, req.params.id], (err) => {
     registrarAuditoria(req.usuario.email, req.usuario.rol, `Usuario ID ${req.params.id} cambiado a ${nuevoEstado}`);
     res.json({ mensaje: `El estado del usuario ahora es: ${nuevoEstado}` });
+  });
+});
+
+// ✨ NUEVO: Resetear Contraseña
+app.put('/api/admin/usuarios/:id/reset', verificarToken, async (req, res) => {
+  if (req.usuario.rol !== 3) return res.status(403).json({ error: 'Solo SysAdmin' });
+  const { nuevaClave } = req.body;
+  const salt = await bcrypt.genSalt(10);
+  const hash = await bcrypt.hash(nuevaClave, salt);
+  db.query("UPDATE usuario SET hash_contraseña = ? WHERE id_usuario = ?", [hash, req.params.id], (err) => {
+    if(err) return res.status(500).json({error: 'Error en BD al cambiar clave'});
+    registrarAuditoria(req.usuario.email, req.usuario.rol, `Password reseteada para usuario ID ${req.params.id}`);
+    res.json({ mensaje: 'Contraseña actualizada con éxito.' });
+  });
+});
+
+// ✨ NUEVO: Eliminar Usuario Seguramente (Poniendo sus logs a NULL primero)
+app.delete('/api/admin/usuarios/:id', verificarToken, (req, res) => {
+  if (req.usuario.rol !== 3) return res.status(403).json({ error: 'Solo SysAdmin' });
+  const idUser = req.params.id;
+  
+  db.query("UPDATE log_acceso SET id_usuario = NULL WHERE id_usuario = ?", [idUser], () => {
+    db.query("DELETE FROM usuario_rol WHERE id_usuario = ?", [idUser], () => {
+      db.query("DELETE FROM usuario WHERE id_usuario = ?", [idUser], (err) => {
+        if(err) return res.status(500).json({error: 'Error al eliminar usuario'});
+        registrarAuditoria(req.usuario.email, req.usuario.rol, `USUARIO ELIMINADO ID: ${idUser}`);
+        res.json({ mensaje: 'Identidad eliminada permanentemente del sistema.' });
+      });
+    });
+  });
+});
+
+// ✨ NUEVO: Visor Forense
+app.get('/api/admin/auditoria', verificarToken, (req, res) => {
+  if (req.usuario.rol !== 3) return res.status(403).json({ error: 'Acceso denegado' });
+  // Mostramos los últimos 100 movimientos
+  const sql = "SELECT id_registro, usuario_email, accion_realizada, fecha_accion FROM registro_auditoria ORDER BY fecha_accion DESC LIMIT 100";
+  db.query(sql, (err, results) => {
+    if(err) return res.status(500).json({error: 'Error al leer auditoría'});
+    res.json({ logs: results });
   });
 });
 

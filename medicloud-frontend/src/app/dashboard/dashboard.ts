@@ -20,7 +20,10 @@ export class DashboardComponent implements OnInit {
   tieneAccesoTotal: boolean = false; 
   nombreUsuario: string = '';
   vistaActual: 'boveda' | 'admin' = 'boveda'; 
+  subVistaAdmin: 'usuarios' | 'auditoria' = 'usuarios'; // ✨ Para las pestañas del admin
+  
   listaUsuarios: any[] = []; 
+  logsAuditoria: any[] = []; // ✨ Lista de logs
 
   misCarpetas: any[] = []; 
   carpetas: any[] = []; 
@@ -46,6 +49,18 @@ export class DashboardComponent implements OnInit {
     this.obtenerDatosCompletos(); 
   }
 
+  // ✨ MEJORA DE SEGURIDAD: Expulsión automática si el token caduca (Error 401)
+  manejarErrorSeguridad(err: any) {
+    if (err.status === 401 || err.status === 403) {
+      alert("🔒 Tu sesión ha caducado o no tienes permisos. Por tu seguridad, vuelve a iniciar sesión.");
+      this.cerrarSesion();
+    } else {
+      alert("❌ Error: " + (err.error?.error || err.message));
+    }
+    this.cargandoBoveda = false;
+    this.cdr.detectChanges();
+  }
+
   leerIdentidadUsuario() {
     const token = localStorage.getItem('token_medicloud');
     if (token) {
@@ -60,7 +75,15 @@ export class DashboardComponent implements OnInit {
 
   cambiarVista(vista: 'boveda' | 'admin') {
     this.vistaActual = vista;
-    if (vista === 'admin') this.obtenerUsuariosAdmin();
+    if (vista === 'admin') {
+      this.obtenerUsuariosAdmin();
+      this.obtenerLogsAuditoria(); // ✨ Cargar logs al entrar al panel
+    }
+    this.cdr.detectChanges();
+  }
+
+  cambiarSubVistaAdmin(subvista: 'usuarios' | 'auditoria') {
+    this.subVistaAdmin = subvista;
     this.cdr.detectChanges();
   }
 
@@ -72,21 +95,17 @@ export class DashboardComponent implements OnInit {
     this.http.get('https://medicloud-backend-tuug.onrender.com/api/mis-carpetas', { headers }).subscribe({
       next: (resCarpetas: any) => {
         this.misCarpetas = resCarpetas;
-        
         this.http.get('https://medicloud-backend-tuug.onrender.com/api/carpetas', { headers }).subscribe({
           next: (resDocs: any) => {
             this.carpetas = resDocs.carpetas || resDocs;
             this.cargandoBoveda = false; 
-
-            if (this.carpetaActual) {
-              this.entrarCarpeta(this.carpetaActual);
-            }
+            if (this.carpetaActual) this.entrarCarpeta(this.carpetaActual);
             this.cdr.detectChanges(); 
           },
-          error: (err) => { this.cargandoBoveda = false; }
+          error: (err) => this.manejarErrorSeguridad(err)
         });
       },
-      error: (err) => { this.cargandoBoveda = false; }
+      error: (err) => this.manejarErrorSeguridad(err)
     });
   }
 
@@ -119,7 +138,7 @@ export class DashboardComponent implements OnInit {
         this.cargandoBoveda = false;
         this.cdr.detectChanges();
       },
-      error: (err) => { this.cargandoBoveda = false; }
+      error: (err) => this.manejarErrorSeguridad(err)
     });
   }
 
@@ -131,10 +150,20 @@ export class DashboardComponent implements OnInit {
         this.listaUsuarios = respuesta.usuarios || respuesta;
         this.cdr.detectChanges();
       },
-      error: (err) => {
-        alert("⛔ Acceso denegado. No tienes permisos de Administrador.");
-        this.cambiarVista('boveda');
-      }
+      error: (err) => this.manejarErrorSeguridad(err)
+    });
+  }
+
+  // ✨ NUEVO: Obtener Logs
+  obtenerLogsAuditoria() {
+    const token = localStorage.getItem('token_medicloud');
+    const headers = new HttpHeaders().set('Authorization', `Bearer ${token}`);
+    this.http.get('https://medicloud-backend-tuug.onrender.com/api/admin/auditoria', { headers }).subscribe({
+      next: (respuesta: any) => {
+        this.logsAuditoria = respuesta.logs || [];
+        this.cdr.detectChanges();
+      },
+      error: (err) => console.error("Error al cargar logs", err)
     });
   }
 
@@ -147,26 +176,20 @@ export class DashboardComponent implements OnInit {
     }
   }
 
-  onFileSelected(event: any) {
-    this.archivoSeleccionado = event.target.files[0];
-  }
+  onFileSelected(event: any) { this.archivoSeleccionado = event.target.files[0]; }
 
   subirArchivo() {
     if (!this.archivoSeleccionado || !this.nuevoDoc.nombre || !this.nuevoDoc.id_carpeta) {
-      alert("Por favor, rellena el nombre, selecciona una carpeta y un archivo.");
-      return;
+      alert("Faltan datos."); return;
     }
-
     this.subiendo = true;
-    const token = localStorage.getItem('token_medicloud');
-    const headers = new HttpHeaders().set('Authorization', `Bearer ${token}`);
-
     const formData = new FormData();
     formData.append('archivo', this.archivoSeleccionado);
     formData.append('nombre', this.nuevoDoc.nombre);
     formData.append('criticidad', this.nuevoDoc.criticidad);
     formData.append('id_carpeta', this.nuevoDoc.id_carpeta); 
 
+    const headers = new HttpHeaders().set('Authorization', `Bearer ${localStorage.getItem('token_medicloud')}`);
     this.http.post('https://medicloud-backend-tuug.onrender.com/api/carpetas/upload', formData, { headers }).subscribe({
       next: (res: any) => {
         alert("✅ " + res.mensaje);
@@ -176,24 +199,14 @@ export class DashboardComponent implements OnInit {
         this.nuevoDoc = { nombre: '', criticidad: 'NORMAL', id_carpeta: '' };
         this.obtenerDatosCompletos(); 
       },
-      error: (err) => {
-        alert("❌ Error: " + (err.error?.error || "Fallo al conectar con el servidor"));
-        this.subiendo = false;
-        this.cdr.detectChanges();
-      }
+      error: (err) => { this.subiendo = false; this.manejarErrorSeguridad(err); }
     });
   }
 
   crearCarpeta() {
-    if (!this.nuevaCarpetaNombre.trim()) {
-      alert("El nombre del directorio no puede estar vacío.");
-      return;
-    }
-
+    if (!this.nuevaCarpetaNombre.trim()) return;
     this.creandoCarpeta = true;
-    const token = localStorage.getItem('token_medicloud');
-    const headers = new HttpHeaders().set('Authorization', `Bearer ${token}`);
-
+    const headers = new HttpHeaders().set('Authorization', `Bearer ${localStorage.getItem('token_medicloud')}`);
     this.http.post('https://medicloud-backend-tuug.onrender.com/api/carpetas', { nombre: this.nuevaCarpetaNombre }, { headers }).subscribe({
       next: (res: any) => {
         alert("✅ " + res.mensaje);
@@ -202,48 +215,26 @@ export class DashboardComponent implements OnInit {
         this.creandoCarpeta = false;
         this.obtenerDatosCompletos();
       },
-      error: (err) => {
-        alert("❌ Error: " + (err.error?.error || "Fallo al crear directorio"));
-        this.creandoCarpeta = false;
-        this.cdr.detectChanges();
-      }
+      error: (err) => { this.creandoCarpeta = false; this.manejarErrorSeguridad(err); }
     });
   }
 
-  // ✨ NUEVA FUNCIÓN: ELIMINAR CARPETA
   eliminarCarpeta(carpeta: any, event: Event) {
-    event.stopPropagation(); // Evita que la carpeta se abra al pulsar el botón de borrar
-    if (!confirm(`¿Estás seguro de que deseas eliminar la carpeta "${carpeta.nombre}"?`)) return;
-
-    const token = localStorage.getItem('token_medicloud');
-    const headers = new HttpHeaders().set('Authorization', `Bearer ${token}`);
-
+    event.stopPropagation(); 
+    if (!confirm(`¿Estás seguro de que deseas eliminar "${carpeta.nombre}"?`)) return;
+    const headers = new HttpHeaders().set('Authorization', `Bearer ${localStorage.getItem('token_medicloud')}`);
     this.http.delete(`https://medicloud-backend-tuug.onrender.com/api/carpetas/${carpeta.id_carpeta}`, { headers }).subscribe({
-      next: (res: any) => {
-        alert("✅ " + res.mensaje);
-        this.obtenerDatosCompletos();
-      },
-      error: (err) => {
-        alert("⚠️ " + (err.error?.error || "Error al eliminar."));
-      }
+      next: (res: any) => { alert("✅ " + res.mensaje); this.obtenerDatosCompletos(); },
+      error: (err) => this.manejarErrorSeguridad(err)
     });
   }
 
-  // ✨ NUEVA FUNCIÓN: ELIMINAR DOCUMENTO
   eliminarDocumento(doc: any) {
-    if (!confirm(`¿Estás seguro de que deseas eliminar permanentemente "${doc.nombre_carpeta}"?`)) return;
-
-    const token = localStorage.getItem('token_medicloud');
-    const headers = new HttpHeaders().set('Authorization', `Bearer ${token}`);
-
+    if (!confirm(`¿Eliminar permanentemente "${doc.nombre_carpeta}"?`)) return;
+    const headers = new HttpHeaders().set('Authorization', `Bearer ${localStorage.getItem('token_medicloud')}`);
     this.http.delete(`https://medicloud-backend-tuug.onrender.com/api/documentos/${doc.id_documento}`, { headers }).subscribe({
-      next: (res: any) => {
-        alert("✅ " + res.mensaje);
-        this.obtenerDatosCompletos();
-      },
-      error: (err) => {
-        alert("❌ " + (err.error?.error || "Error al eliminar."));
-      }
+      next: (res: any) => { alert("✅ " + res.mensaje); this.obtenerDatosCompletos(); },
+      error: (err) => this.manejarErrorSeguridad(err)
     });
   }
 
@@ -252,39 +243,49 @@ export class DashboardComponent implements OnInit {
     this.cerrarSesionEvento.emit();
   }
 
-  abrirCarpeta(url: string) {
-    if (url) window.open(url, '_blank');
-    else alert("No hay archivo disponible para esta tarjeta.");
-  }
+  abrirCarpeta(url: string) { if (url) window.open(url, '_blank'); }
+
+  // ✨ FUNCIONES ADMIN AMPLIADAS ✨
 
   toggleEstado(usuario: any) {
     const nuevoEstado = usuario.estado === 'Bloqueado' ? 'Activo' : 'Bloqueado';
-    const token = localStorage.getItem('token_medicloud');
-    const headers = new HttpHeaders().set('Authorization', `Bearer ${token}`);
-
-    this.http.put(`https://medicloud-backend-tuug.onrender.com/api/admin/usuarios/${usuario.id_usuario}/estado`, 
-    { nuevoEstado }, { headers }).subscribe({
-      next: () => {
-        usuario.estado = nuevoEstado;
-        this.cdr.detectChanges();
-      },
-      error: (err) => { alert("❌ Error del Servidor:\n" + (err.error?.error || err.message)); }
+    const headers = new HttpHeaders().set('Authorization', `Bearer ${localStorage.getItem('token_medicloud')}`);
+    this.http.put(`https://medicloud-backend-tuug.onrender.com/api/admin/usuarios/${usuario.id_usuario}/estado`, { nuevoEstado }, { headers }).subscribe({
+      next: () => { usuario.estado = nuevoEstado; this.cdr.detectChanges(); },
+      error: (err) => this.manejarErrorSeguridad(err)
     });
   }
 
   crearUsuario() {
     if (!this.nuevoUsuario.nombre || !this.nuevoUsuario.email || !this.nuevoUsuario.password) return;
-    const token = localStorage.getItem('token_medicloud');
-    const headers = new HttpHeaders().set('Authorization', `Bearer ${token}`);
-
+    const headers = new HttpHeaders().set('Authorization', `Bearer ${localStorage.getItem('token_medicloud')}`);
     this.http.post('https://medicloud-backend-tuug.onrender.com/api/admin/usuarios', this.nuevoUsuario, { headers }).subscribe({
       next: (res: any) => {
-        alert(res.mensaje);
+        alert("✅ " + res.mensaje);
         this.mostrarModalAlta = false;
         this.obtenerUsuariosAdmin(); 
         this.nuevoUsuario = { nombre: '', email: '', password: '', id_rol: 4 };
       },
-      error: (err) => { alert("❌ Error de Base de Datos:\n" + (err.error?.error || err.message)); }
+      error: (err) => this.manejarErrorSeguridad(err)
+    });
+  }
+
+  resetearPassword(usuario: any) {
+    const nuevaClave = prompt(`Escribe la nueva contraseña para ${usuario.nombre_usuario}:`);
+    if (!nuevaClave) return;
+    const headers = new HttpHeaders().set('Authorization', `Bearer ${localStorage.getItem('token_medicloud')}`);
+    this.http.put(`https://medicloud-backend-tuug.onrender.com/api/admin/usuarios/${usuario.id_usuario}/reset`, { nuevaClave }, { headers }).subscribe({
+      next: (res: any) => alert("✅ " + res.mensaje),
+      error: (err) => this.manejarErrorSeguridad(err)
+    });
+  }
+
+  eliminarUsuario(usuario: any) {
+    if (!confirm(`🚨 CUIDADO: ¿Deseas eliminar permanentemente al usuario ${usuario.nombre_usuario}?`)) return;
+    const headers = new HttpHeaders().set('Authorization', `Bearer ${localStorage.getItem('token_medicloud')}`);
+    this.http.delete(`https://medicloud-backend-tuug.onrender.com/api/admin/usuarios/${usuario.id_usuario}`, { headers }).subscribe({
+      next: (res: any) => { alert("✅ " + res.mensaje); this.obtenerUsuariosAdmin(); },
+      error: (err) => this.manejarErrorSeguridad(err)
     });
   }
 }
