@@ -37,29 +37,54 @@
     @if (cargandoBoveda) {
       <div class="loading-state">
         <div class="spinner"></div>
-        <p class="loading-title">Estableciendo conexión segura...</p>
-        <p class="loading-subtitle">Recuperando expedientes cifrados desde el servidor principal</p>
+        <p class="loading-title">Sincronizando directorios...</p>
       </div>
     } 
     @else {
-      <div class="carpetas-grid">
-        @for (carpeta of carpetas; track $index) {
-          <div class="carpeta-card">
-            <div class="emoji-icon">{{ carpeta.nivel_criticidad === 'CRÍTICO' ? '🚨' : '📁' }}</div>
-            <h3>{{ carpeta.nombre_carpeta || 'Expediente Confidencial' }}</h3>
-            <div class="card-details">
-              <p><strong>Carpeta:</strong> {{ carpeta.ubicacion || 'General' }}</p>
-              <p><strong>Cliente:</strong> {{ carpeta.cliente || 'No especificado' }}</p>
-              <p><strong>Seguridad:</strong> <span [style.color]="carpeta.nivel_criticidad === 'CRÍTICO' ? '#dc2626' : '#2563eb'">{{ carpeta.nivel_criticidad }}</span></p>
+      @if (!carpetaActual) {
+        <h2 style="margin-left: 20px; color: #1e293b;">Directorios Disponibles</h2>
+        
+        <div class="carpetas-grid">
+          @for (carpeta of misCarpetas; track carpeta.id_carpeta) {
+            <div class="carpeta-card" (click)="entrarCarpeta(carpeta)" style="cursor: pointer; border-top: 4px solid #f59e0b; transition: transform 0.2s;">
+              <div class="emoji-icon">📁</div>
+              <h3>{{ carpeta.nombre }}</h3>
+              <div class="card-details">
+                <p><strong>Propietario:</strong> {{ carpeta.cliente || 'Interno' }}</p>
+              </div>
+              <button class="btn-abrir" style="background: #f59e0b; color: white; width: 100%;">Abrir Carpeta</button>
             </div>
-            <button class="btn-abrir" (click)="abrirCarpeta(carpeta.ruta)">Acceder al Documento</button>
-          </div>
-        } @empty {
-          <div class="empty-state">
-            <p>No se han localizado documentos registrados para este perfil.</p>
-          </div>
-        }
-      </div>
+          } @empty {
+            <div class="empty-state"><p>No hay directorios creados para tu empresa.</p></div>
+          }
+        </div>
+
+      } @else {
+        <div style="margin: 0 20px 20px 20px; display: flex; align-items: center; gap: 15px; background: white; padding: 15px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+          <button class="btn-cancel" (click)="volverACarpetas()" style="margin: 0; background: #e2e8f0; color: #475569; border: none; padding: 8px 15px; border-radius: 6px; cursor:pointer;">⬅ Volver</button>
+          <h2 style="margin: 0; color: #1e293b; display: flex; align-items: center; gap: 10px;">
+            📁 {{ carpetaActual.nombre }}
+          </h2>
+        </div>
+
+        <div class="carpetas-grid">
+          @for (doc of documentosDeCarpeta; track $index) {
+            <div class="carpeta-card">
+              <div class="emoji-icon">{{ doc.nivel_criticidad === 'CRÍTICO' ? '🚨' : '📄' }}</div>
+              <h3>{{ doc.nombre_carpeta || 'Documento Confidencial' }}</h3>
+              <div class="card-details">
+                <p><strong>Tipo:</strong> Documento Cifrado</p>
+                <p><strong>Seguridad:</strong> <span [style.color]="doc.nivel_criticidad === 'CRÍTICO' ? '#dc2626' : '#2563eb'">{{ doc.nivel_criticidad }}</span></p>
+              </div>
+              <button class="btn-abrir" (click)="abrirCarpeta(doc.ruta)">Ver Archivo</button>
+            </div>
+          } @empty {
+            <div class="empty-state">
+              <p>Esta carpeta está vacía. Usa el botón superior para subir el primer documento.</p>
+            </div>
+          }
+        </div>
+      }
     }
   } 
 

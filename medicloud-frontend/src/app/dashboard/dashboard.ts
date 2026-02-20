@@ -13,8 +13,7 @@ import { FormsModule } from '@angular/forms';
 export class DashboardComponent implements OnInit {
   @Output() cerrarSesionEvento = new EventEmitter<void>();
   
-  mensajeServidor = '¡Bóveda Segura de MediCloud conectada!';
-  carpetas: any[] = [];
+  mensajeServidor = '¡Bóveda Segura conectada!';
   cargandoBoveda: boolean = true; 
 
   esAdmin: boolean = false;
@@ -23,22 +22,25 @@ export class DashboardComponent implements OnInit {
   vistaActual: 'boveda' | 'admin' = 'boveda'; 
   listaUsuarios: any[] = []; 
 
-  // Variables para Modal de Alta Empleado
+  // ✨ VARIABLES DE NAVEGACIÓN DE CARPETAS
+  misCarpetas: any[] = []; // Directorios físicos
+  carpetas: any[] = []; // Todos los documentos de la BD
+  carpetaActual: any = null; // null = ver carpetas | objeto = ver documentos de esa carpeta
+  documentosDeCarpeta: any[] = []; // Los documentos filtrados para la vista actual
+
   mostrarModalAlta: boolean = false;
   nuevoUsuario = { nombre: '', email: '', password: '', id_rol: 4 };
 
-  // ✨ NUEVAS VARIABLES PARA SUBIDA DE DOCUMENTOS
   mostrarModalUpload: boolean = false;
   subiendo: boolean = false;
   archivoSeleccionado: File | null = null;
-  nuevoDoc = { nombre: '', criticidad: 'NORMAL', id_carpeta: '' }; // ✨ Añadido id_carpeta
-  misCarpetas: any[] = []; // ✨ Lista para el desplegable del modal
+  nuevoDoc = { nombre: '', criticidad: 'NORMAL', id_carpeta: '' }; 
 
   constructor(private http: HttpClient, private cdr: ChangeDetectorRef) {}
 
   ngOnInit() {
     this.leerIdentidadUsuario(); 
-    this.obtenerCarpetas();
+    this.obtenerDatosCompletos(); // Carga carpetas y documentos de golpe
   }
 
   leerIdentidadUsuario() {
@@ -49,48 +51,86 @@ export class DashboardComponent implements OnInit {
         this.nombreUsuario = payload.nombre;
         this.esAdmin = (payload.rol === 3); 
         this.tieneAccesoTotal = (payload.rol === 3 || payload.rol === 1);
-      } catch (e) {
-        console.error("Error al leer el token", e);
-      }
+      } catch (e) { console.error("Error al leer el token", e); }
     }
   }
 
   cambiarVista(vista: 'boveda' | 'admin') {
     this.vistaActual = vista;
-    if (vista === 'admin') {
-      this.obtenerUsuariosAdmin();
-    }
+    if (vista === 'admin') this.obtenerUsuariosAdmin();
+    this.cdr.detectChanges();
+  }
+
+  // ✨ NUEVO: Carga los directorios y los documentos a la vez
+  obtenerDatosCompletos() {
+    this.cargandoBoveda = true; 
+    const token = localStorage.getItem('token_medicloud');
+    const headers = new HttpHeaders().set('Authorization', `Bearer ${token}`);
+
+    // 1. Obtener los nombres de las carpetas
+    this.http.get('https://medicloud-backend-tuug.onrender.com/api/mis-carpetas', { headers }).subscribe({
+      next: (resCarpetas: any) => {
+        this.misCarpetas = resCarpetas;
+        
+        // 2. Obtener todos los documentos
+        this.http.get('https://medicloud-backend-tuug.onrender.com/api/carpetas', { headers }).subscribe({
+          next: (resDocs: any) => {
+            this.carpetas = resDocs.carpetas || resDocs;
+            this.cargandoBoveda = false; 
+
+            // Si ya estábamos dentro de una carpeta (por ejemplo al subir archivo), refrescamos sus documentos
+            if (this.carpetaActual) {
+              this.entrarCarpeta(this.carpetaActual);
+            }
+            this.cdr.detectChanges(); 
+          },
+          error: (err) => { this.cargandoBoveda = false; }
+        });
+      },
+      error: (err) => { this.cargandoBoveda = false; }
+    });
+  }
+
+  // ✨ NUEVO: Al hacer clic en una carpeta, filtramos sus documentos
+  entrarCarpeta(carpeta: any) {
+    this.carpetaActual = carpeta;
+    // Filtramos los documentos donde la "ubicacion" coincida con el nombre de la carpeta
+    this.documentosDeCarpeta = this.carpetas.filter(doc => doc.ubicacion === carpeta.nombre);
+    this.cdr.detectChanges();
+  }
+
+  // ✨ NUEVO: Botón de Atrás
+  volverACarpetas() {
+    this.carpetaActual = null;
+    this.documentosDeCarpeta = [];
+    this.obtenerDatosCompletos(); // Refrescar por si hubo cambios
     this.cdr.detectChanges();
   }
 
   buscarCarpeta(termino: string) {
     if (!termino.trim()) {
-      this.obtenerCarpetas(); 
+      this.volverACarpetas(); 
       return;
     }
-
     this.cargandoBoveda = true;
     const token = localStorage.getItem('token_medicloud');
     const headers = new HttpHeaders().set('Authorization', `Bearer ${token}`);
 
     this.http.get(`https://medicloud-backend-tuug.onrender.com/api/carpetas/buscar?nombre=${termino}`, { headers }).subscribe({
       next: (respuesta: any) => {
-        this.carpetas = respuesta.carpetas || respuesta;
+        // En búsqueda, mostramos los resultados directamente simulando que es una carpeta especial
+        this.carpetaActual = { nombre: `Búsqueda: "${termino}"` };
+        this.documentosDeCarpeta = respuesta.carpetas || respuesta;
         this.cargandoBoveda = false;
         this.cdr.detectChanges();
       },
-      error: (err) => {
-        console.error("❌ Error en búsqueda:", err);
-        this.cargandoBoveda = false;
-        this.cdr.detectChanges();
-      }
+      error: (err) => { this.cargandoBoveda = false; }
     });
   }
 
   obtenerUsuariosAdmin() {
     const token = localStorage.getItem('token_medicloud');
     const headers = new HttpHeaders().set('Authorization', `Bearer ${token}`);
-
     this.http.get('https://medicloud-backend-tuug.onrender.com/api/admin/usuarios', { headers }).subscribe({
       next: (respuesta: any) => {
         this.listaUsuarios = respuesta.usuarios || respuesta;
@@ -103,44 +143,14 @@ export class DashboardComponent implements OnInit {
     });
   }
 
-  obtenerCarpetas() {
-    this.cargandoBoveda = true; 
-    const token = localStorage.getItem('token_medicloud');
-    const headers = new HttpHeaders().set('Authorization', `Bearer ${token}`);
-
-    this.http.get('https://medicloud-backend-tuug.onrender.com/api/carpetas', { headers }).subscribe({
-      next: (respuesta: any) => {
-        this.carpetas = respuesta.carpetas || respuesta;
-        this.cargandoBoveda = false; 
-        this.cdr.detectChanges(); 
-      },
-      error: (err) => {
-        console.error("❌ Error al obtener carpetas:", err);
-        this.cargandoBoveda = false; 
-        this.cdr.detectChanges();
-      }
-    });
-  }
-
-  // ✨ NUEVA FUNCIÓN: Abre el modal y carga las carpetas del cliente
   abrirModalSubida() {
     this.mostrarModalUpload = true;
-    const token = localStorage.getItem('token_medicloud');
-    const headers = new HttpHeaders().set('Authorization', `Bearer ${token}`);
-
-    this.http.get('https://medicloud-backend-tuug.onrender.com/api/mis-carpetas', { headers }).subscribe({
-      next: (res: any) => {
-        this.misCarpetas = res;
-        // Si tiene carpetas, seleccionamos la primera por defecto
-        if (this.misCarpetas.length > 0) {
-          this.nuevoDoc.id_carpeta = this.misCarpetas[0].id_carpeta;
-        }
-        this.cdr.detectChanges();
-      },
-      error: (err) => {
-        console.error("Error al obtener las carpetas:", err);
-      }
-    });
+    // Si estamos dentro de una carpeta, pre-seleccionarla en el desplegable
+    if (this.carpetaActual && this.carpetaActual.id_carpeta) {
+      this.nuevoDoc.id_carpeta = this.carpetaActual.id_carpeta;
+    } else if (this.misCarpetas.length > 0) {
+      this.nuevoDoc.id_carpeta = this.misCarpetas[0].id_carpeta;
+    }
   }
 
   onFileSelected(event: any) {
@@ -161,7 +171,7 @@ export class DashboardComponent implements OnInit {
     formData.append('archivo', this.archivoSeleccionado);
     formData.append('nombre', this.nuevoDoc.nombre);
     formData.append('criticidad', this.nuevoDoc.criticidad);
-    formData.append('id_carpeta', this.nuevoDoc.id_carpeta); // ✨ Enviamos la carpeta seleccionada
+    formData.append('id_carpeta', this.nuevoDoc.id_carpeta); 
 
     this.http.post('https://medicloud-backend-tuug.onrender.com/api/carpetas/upload', formData, { headers }).subscribe({
       next: (res: any) => {
@@ -170,7 +180,7 @@ export class DashboardComponent implements OnInit {
         this.subiendo = false;
         this.archivoSeleccionado = null;
         this.nuevoDoc = { nombre: '', criticidad: 'NORMAL', id_carpeta: '' };
-        this.obtenerCarpetas(); // Refrescar lista
+        this.obtenerDatosCompletos(); // Refrescar para ver el nuevo archivo
       },
       error: (err) => {
         alert("❌ Error: " + (err.error?.error || "Fallo al conectar con el servidor"));
@@ -186,11 +196,8 @@ export class DashboardComponent implements OnInit {
   }
 
   abrirCarpeta(url: string) {
-    if (url) {
-      window.open(url, '_blank');
-    } else {
-      alert("No hay archivo disponible para esta carpeta.");
-    }
+    if (url) window.open(url, '_blank');
+    else alert("No hay archivo disponible para esta tarjeta.");
   }
 
   toggleEstado(usuario: any) {
@@ -204,18 +211,12 @@ export class DashboardComponent implements OnInit {
         usuario.estado = nuevoEstado;
         this.cdr.detectChanges();
       },
-      error: (err) => {
-        alert("❌ Error del Servidor:\n" + (err.error?.error || err.message));
-      }
+      error: (err) => { alert("❌ Error del Servidor:\n" + (err.error?.error || err.message)); }
     });
   }
 
   crearUsuario() {
-    if (!this.nuevoUsuario.nombre || !this.nuevoUsuario.email || !this.nuevoUsuario.password) {
-      alert("Por favor, rellena todos los campos.");
-      return;
-    }
-
+    if (!this.nuevoUsuario.nombre || !this.nuevoUsuario.email || !this.nuevoUsuario.password) return;
     const token = localStorage.getItem('token_medicloud');
     const headers = new HttpHeaders().set('Authorization', `Bearer ${token}`);
 
@@ -226,9 +227,7 @@ export class DashboardComponent implements OnInit {
         this.obtenerUsuariosAdmin(); 
         this.nuevoUsuario = { nombre: '', email: '', password: '', id_rol: 4 };
       },
-      error: (err) => {
-        alert("❌ Error de Base de Datos:\n" + (err.error?.error || err.message));
-      }
+      error: (err) => { alert("❌ Error de Base de Datos:\n" + (err.error?.error || err.message)); }
     });
   }
 }
