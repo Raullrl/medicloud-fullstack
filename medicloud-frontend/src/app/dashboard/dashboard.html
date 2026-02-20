@@ -31,7 +31,7 @@
         (input)="buscarCarpeta($any($event.target).value)"
         style="flex: 1; max-width: 600px;">
       
-      <button class="btn-alta" (click)="mostrarModalUpload = true">+ Subir Documento</button>
+      <button class="btn-alta" (click)="abrirModalSubida()">+ Subir Documento</button>
     </div>
 
     @if (cargandoBoveda) {
@@ -48,6 +48,7 @@
             <div class="emoji-icon">{{ carpeta.nivel_criticidad === 'CRÍTICO' ? '🚨' : '📁' }}</div>
             <h3>{{ carpeta.nombre_carpeta || 'Expediente Confidencial' }}</h3>
             <div class="card-details">
+              <p><strong>Carpeta:</strong> {{ carpeta.ubicacion || 'General' }}</p>
               <p><strong>Cliente:</strong> {{ carpeta.cliente || 'No especificado' }}</p>
               <p><strong>Seguridad:</strong> <span [style.color]="carpeta.nivel_criticidad === 'CRÍTICO' ? '#dc2626' : '#2563eb'">{{ carpeta.nivel_criticidad }}</span></p>
             </div>
@@ -113,6 +114,16 @@
     <div class="modal-content">
       <h3 style="margin-top: 0; margin-bottom: 20px;">Cargar Nuevo Expediente</h3>
       
+      <div class="form-group">
+        <label>Carpeta de Destino</label>
+        <select [(ngModel)]="nuevoDoc.id_carpeta">
+          <option value="" disabled selected>Seleccione una carpeta...</option>
+          @for (c of misCarpetas; track c.id_carpeta) {
+            <option [value]="c.id_carpeta">{{ c.nombre }}</option>
+          }
+        </select>
+      </div>
+
       <div class="form-group">
         <label>Nombre del Documento</label>
         <input type="text" [(ngModel)]="nuevoDoc.nombre" placeholder="Ej: Contrato_Sanitas_2024">

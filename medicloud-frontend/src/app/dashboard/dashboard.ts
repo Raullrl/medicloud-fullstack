@@ -31,7 +31,8 @@ export class DashboardComponent implements OnInit {
   mostrarModalUpload: boolean = false;
   subiendo: boolean = false;
   archivoSeleccionado: File | null = null;
-  nuevoDoc = { nombre: '', criticidad: 'NORMAL' };
+  nuevoDoc = { nombre: '', criticidad: 'NORMAL', id_carpeta: '' }; // ✨ Añadido id_carpeta
+  misCarpetas: any[] = []; // ✨ Lista para el desplegable del modal
 
   constructor(private http: HttpClient, private cdr: ChangeDetectorRef) {}
 
@@ -121,14 +122,34 @@ export class DashboardComponent implements OnInit {
     });
   }
 
-  // ✨ NUEVAS FUNCIONES DE SUBIDA
+  // ✨ NUEVA FUNCIÓN: Abre el modal y carga las carpetas del cliente
+  abrirModalSubida() {
+    this.mostrarModalUpload = true;
+    const token = localStorage.getItem('token_medicloud');
+    const headers = new HttpHeaders().set('Authorization', `Bearer ${token}`);
+
+    this.http.get('https://medicloud-backend-tuug.onrender.com/api/mis-carpetas', { headers }).subscribe({
+      next: (res: any) => {
+        this.misCarpetas = res;
+        // Si tiene carpetas, seleccionamos la primera por defecto
+        if (this.misCarpetas.length > 0) {
+          this.nuevoDoc.id_carpeta = this.misCarpetas[0].id_carpeta;
+        }
+        this.cdr.detectChanges();
+      },
+      error: (err) => {
+        console.error("Error al obtener las carpetas:", err);
+      }
+    });
+  }
+
   onFileSelected(event: any) {
     this.archivoSeleccionado = event.target.files[0];
   }
 
   subirArchivo() {
-    if (!this.archivoSeleccionado || !this.nuevoDoc.nombre) {
-      alert("Por favor, introduce un nombre y selecciona un archivo.");
+    if (!this.archivoSeleccionado || !this.nuevoDoc.nombre || !this.nuevoDoc.id_carpeta) {
+      alert("Por favor, rellena el nombre, selecciona una carpeta y un archivo.");
       return;
     }
 
@@ -140,6 +161,7 @@ export class DashboardComponent implements OnInit {
     formData.append('archivo', this.archivoSeleccionado);
     formData.append('nombre', this.nuevoDoc.nombre);
     formData.append('criticidad', this.nuevoDoc.criticidad);
+    formData.append('id_carpeta', this.nuevoDoc.id_carpeta); // ✨ Enviamos la carpeta seleccionada
 
     this.http.post('https://medicloud-backend-tuug.onrender.com/api/carpetas/upload', formData, { headers }).subscribe({
       next: (res: any) => {
@@ -147,7 +169,7 @@ export class DashboardComponent implements OnInit {
         this.mostrarModalUpload = false;
         this.subiendo = false;
         this.archivoSeleccionado = null;
-        this.nuevoDoc = { nombre: '', criticidad: 'NORMAL' };
+        this.nuevoDoc = { nombre: '', criticidad: 'NORMAL', id_carpeta: '' };
         this.obtenerCarpetas(); // Refrescar lista
       },
       error: (err) => {
