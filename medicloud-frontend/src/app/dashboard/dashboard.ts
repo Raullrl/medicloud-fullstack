@@ -1,12 +1,12 @@
 import { Component, Output, EventEmitter, OnInit, ChangeDetectorRef } from '@angular/core';
 import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { CommonModule } from '@angular/common';
-import { FormsModule } from '@angular/forms'; // ✨ Añadido para los formularios
+import { FormsModule } from '@angular/forms'; 
 
 @Component({
   selector: 'app-dashboard',
   standalone: true,
-  imports: [CommonModule, FormsModule], // ✨ Añadido FormsModule aquí
+  imports: [CommonModule, FormsModule], 
   templateUrl: './dashboard.html',
   styleUrl: './dashboard.css'
 })
@@ -145,7 +145,10 @@ export class DashboardComponent implements OnInit {
         usuario.estado = nuevoEstado;
         this.cdr.detectChanges();
       },
-      error: () => alert("Error al modificar el estado. Revisa tus permisos.")
+      error: (err) => {
+        // ✨ AHORA SÍ TE DIRÁ EL ERROR REAL DE LA BASE DE DATOS
+        alert("❌ Error del Servidor:\n" + (err.error?.error || err.message));
+      }
     });
   }
 
@@ -161,12 +164,15 @@ export class DashboardComponent implements OnInit {
 
     this.http.post('https://medicloud-backend-tuug.onrender.com/api/admin/usuarios', this.nuevoUsuario, { headers }).subscribe({
       next: (res: any) => {
-        alert(res.mensaje);
+        alert("✅ " + res.mensaje);
         this.mostrarModalAlta = false; // Cierra la ventana
         this.obtenerUsuariosAdmin();   // Recarga la tabla
         this.nuevoUsuario = { nombre: '', email: '', password: '', id_rol: 4 }; // Limpia el formulario
       },
-      error: () => alert("Error al crear el usuario. El correo podría estar ya en uso.")
+      error: (err) => {
+        // ✨ AHORA SÍ TE DIRÁ EL ERROR REAL DE LA BASE DE DATOS
+        alert("❌ Error de Base de Datos:\n" + (err.error?.error || err.message));
+      }
     });
   }
 }
