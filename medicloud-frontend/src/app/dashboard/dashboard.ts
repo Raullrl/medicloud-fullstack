@@ -135,7 +135,8 @@ export class DashboardComponent implements OnInit {
 
   // ✨ NUEVA FUNCIÓN: CAMBIAR ESTADO (BLOQUEAR/ACTIVAR)
   toggleEstado(usuario: any) {
-    const nuevoEstado = usuario.estado === 'Bloqueado' ? 'Activa' : 'Bloqueado';
+    // ✨ CORREGIDO: Cambiado 'Activa' por 'Activo'
+    const nuevoEstado = usuario.estado === 'Bloqueado' ? 'Activo' : 'Bloqueado';
     const token = localStorage.getItem('token_medicloud');
     const headers = new HttpHeaders().set('Authorization', `Bearer ${token}`);
 
@@ -146,7 +147,6 @@ export class DashboardComponent implements OnInit {
         this.cdr.detectChanges();
       },
       error: (err) => {
-        // ✨ AHORA SÍ TE DIRÁ EL ERROR REAL DE LA BASE DE DATOS
         alert("❌ Error del Servidor:\n" + (err.error?.error || err.message));
       }
     });
@@ -164,13 +164,12 @@ export class DashboardComponent implements OnInit {
 
     this.http.post('https://medicloud-backend-tuug.onrender.com/api/admin/usuarios', this.nuevoUsuario, { headers }).subscribe({
       next: (res: any) => {
-        alert("✅ " + res.mensaje);
+        alert(res.mensaje);
         this.mostrarModalAlta = false; // Cierra la ventana
         this.obtenerUsuariosAdmin();   // Recarga la tabla
         this.nuevoUsuario = { nombre: '', email: '', password: '', id_rol: 4 }; // Limpia el formulario
       },
       error: (err) => {
-        // ✨ AHORA SÍ TE DIRÁ EL ERROR REAL DE LA BASE DE DATOS
         alert("❌ Error de Base de Datos:\n" + (err.error?.error || err.message));
       }
     });
