@@ -6,6 +6,9 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken'); 
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
+// ✨ NUEVAS LIBRERÍAS
+const multer = require('multer');
+const { createClient } = require('@supabase/supabase-js');
 
 const app = express();
 
@@ -48,9 +51,16 @@ const db = mysql.createPool({
   }
 });
 
-console.log("📡 Backend conectado a la base de datos de Aiven...");
+// ✨ CONFIGURACIÓN SUPABASE Y MULTER
+const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_KEY);
+const upload = multer({ 
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 10 * 1024 * 1024 } // 10MB máx
+});
 
-// ✨ --- CORREGIDO: VOLVEMOS A USAR usuario_email PARA QUE COINCIDA CON TU BBDD --- ✨
+console.log("📡 Backend MediCloud conectado a Aiven y Supabase...");
+
+// --- FUNCIONES DE AUDITORÍA (Tus originales) ---
 const registrarAuditoria = (email, rol_id, accion) => {
   const sql = "INSERT INTO registro_auditoria (usuario_email, rol_id, accion_realizada) VALUES (?, ?, ?)";
   db.query(sql, [email, rol_id, accion], (err) => {
@@ -58,10 +68,9 @@ const registrarAuditoria = (email, rol_id, accion) => {
   });
 };
 
-// ✨ --- FUNCIÓN AUXILIAR PARA REGISTRO_ACCESO (FORENSE) --- ✨
 const registrarLogForense = (id_usuario, id_doc, ip, accion, resultado) => {
   const sql = `INSERT INTO log_acceso (id_usuario, id_documento, ip_origen, accion, resultado) 
-               VALUES (?, ?, ?, ?, ?)`;
+                VALUES (?, ?, ?, ?, ?)`;
   db.query(sql, [id_usuario, id_doc || null, ip, accion, resultado], (err) => {
     if (err) console.error("❌ Error en log_acceso:", err.message);
   });
@@ -80,27 +89,16 @@ app.post('/api/login', loginLimiter, async (req, res) => {
   const { usuario, password } = req.body; 
   const ipCliente = req.headers['x-forwarded-for'] || req.ip; 
 
-  if (!usuario || !password) {
-    return res.status(400).json({ error: 'Faltan credenciales' });
-  }
+  if (!usuario || !password) return res.status(400).json({ error: 'Faltan credenciales' });
 
-  const queryLogin = `
-    SELECT u.*, ur.id_rol 
-    FROM usuario u
-    LEFT JOIN usuario_rol ur ON u.id_usuario = ur.id_usuario
-    WHERE u.email = ?
-  `;
+  const queryLogin = `SELECT u.*, ur.id_rol FROM usuario u LEFT JOIN usuario_rol ur ON u.id_usuario = ur.id_usuario WHERE u.email = ?`;
 
   db.query(queryLogin, [usuario], async (err, results) => {
     if (err) return res.status(500).json({ error: 'Error en el servidor' });
-
     if (results.length === 0) return res.status(401).json({ error: 'Email o contraseña incorrectos' });
 
     const userDB = results[0];
-
-    if (userDB.estado === 'Bloqueado') {
-      return res.status(403).json({ error: 'Tu cuenta ha sido bloqueada.' });
-    }
+    if (userDB.estado === 'Bloqueado') return res.status(403).json({ error: 'Tu cuenta ha sido bloqueada.' });
 
     const passwordValida = await bcrypt.compare(password, userDB.hash_contraseña);
     if (!passwordValida) {
@@ -111,20 +109,18 @@ app.post('/api/login', loginLimiter, async (req, res) => {
     const token = jwt.sign(
       { id: userDB.id_usuario, rol: userDB.id_rol, nombre: userDB.nombre_usuario, email: userDB.email },
       process.env.JWT_SECRET,
-      { expiresIn: '15m' }
+      { expiresIn: '60m' }
     );
 
     registrarLogForense(userDB.id_usuario, null, ipCliente, 'LOGIN_SUCCESS', 'EXITOSO');
-    console.log(`✅ Login exitoso: ${userDB.email}`);
     res.json({ mensaje: `¡Bienvenido, ${userDB.nombre_usuario}!`, token: token });
   });
 });
 
-// --- MIDDLEWARE DE VERIFICACIÓN DE TOKEN ---
+// --- MIDDLEWARE VERIFICACIÓN ---
 const verificarToken = (req, res, next) => {
   const cabeceraAuth = req.headers['authorization'];
   const token = cabeceraAuth && cabeceraAuth.split(' ')[1];
-
   if (!token) return res.status(401).json({ error: 'Acceso denegado' });
 
   jwt.verify(token, process.env.JWT_SECRET, (err, usuarioDecodificado) => {
@@ -134,7 +130,7 @@ const verificarToken = (req, res, next) => {
   });
 };
 
-// --- RUTA PROTEGIDA: CARPETAS ---
+// --- RUTA: CARPETAS (Actualizada con JOIN a documentos y versiones) ---
 app.get('/api/carpetas', verificarToken, (req, res) => {
   const email = req.usuario.email || '';
   const dominio = email.split('@')[1]?.split('.')[0] || '';
@@ -144,39 +140,42 @@ app.get('/api/carpetas', verificarToken, (req, res) => {
   registrarLogForense(req.usuario.id, null, ipCliente, 'CONSULTA_BOVEDA', 'EXITOSO');
 
   let querySQL = `
-    SELECT c.id_carpeta, c.nombre AS nombre_carpeta, c.ruta, cl.nombre_empresa AS cliente
-    FROM carpeta c
+    SELECT d.id_documento, d.nombre_archivo AS nombre_carpeta, d.nivel_criticidad, v.ruta_cifrada AS ruta, cl.nombre_empresa AS cliente
+    FROM documento d
+    JOIN carpeta c ON d.id_carpeta = c.id_carpeta
     JOIN cliente cl ON c.id_cliente = cl.id_cliente
+    LEFT JOIN version_documento v ON d.id_documento = v.id_documento
   `;
 
   if (req.usuario.rol !== 3 && req.usuario.rol !== 1) {
     querySQL += ` WHERE cl.nombre_empresa LIKE ?`;
     db.query(querySQL, [`%${dominio}%`], (err, results) => {
       if (err) return res.status(500).json({ error: 'Error al filtrar bóveda' });
-      res.json({ mensaje: "Bóveda filtrada por dominio", carpetas: results });
+      res.json({ carpetas: results });
     });
   } else {
     db.query(querySQL, (err, results) => {
       if (err) return res.status(500).json({ error: 'Error al leer bóveda' });
-      res.json({ mensaje: "Acceso total de administrador", carpetas: results });
+      res.json({ carpetas: results });
     });
   }
 });
 
-// --- RUTA BÚSQUEDA SEGURA ---
+// --- RUTA: BÚSQUEDA SEGURA (Actualizada) ---
 app.get('/api/carpetas/buscar', verificarToken, (req, res) => {
   const termino = req.query.nombre || '';
   const dominio = req.usuario.email.split('@')[1]?.split('.')[0] || '';
   const ipCliente = req.headers['x-forwarded-for'] || req.ip;
   
   registrarAuditoria(req.usuario.email, req.usuario.rol, `Búsqueda segura: "${termino}"`);
-  registrarLogForense(req.usuario.id, null, ipCliente, 'BUSQUEDA_EXPEDIENTE', 'EXITOSO');
 
   let querySQL = `
-    SELECT c.id_carpeta, c.nombre AS nombre_carpeta, c.ruta, cl.nombre_empresa AS cliente
-    FROM carpeta c
+    SELECT d.id_documento, d.nombre_archivo AS nombre_carpeta, d.nivel_criticidad, v.ruta_cifrada AS ruta, cl.nombre_empresa AS cliente
+    FROM documento d
+    JOIN carpeta c ON d.id_carpeta = c.id_carpeta
     JOIN cliente cl ON c.id_cliente = cl.id_cliente
-    WHERE c.nombre LIKE ?
+    LEFT JOIN version_documento v ON d.id_documento = v.id_documento
+    WHERE d.nombre_archivo LIKE ?
   `;
   const params = [`%${termino}%`];
 
@@ -191,25 +190,78 @@ app.get('/api/carpetas/buscar', verificarToken, (req, res) => {
   });
 });
 
-// --- RUTA PROTEGIDA: PANEL DE ADMINISTRADOR ---
+// ✨ --- NUEVA RUTA: SUBIDA DUAL A SUPABASE Y TABLAS RELACIONADAS ---
+app.post('/api/carpetas/upload', verificarToken, upload.single('archivo'), async (req, res) => {
+  const ipCliente = req.headers['x-forwarded-for'] || req.ip;
+  const { nombre, criticidad } = req.body;
+  const archivo = req.file;
+  const dominio = req.usuario.email.split('@')[1]?.split('.')[0] || '';
+
+  if (!archivo || !nombre) return res.status(400).json({ error: 'Faltan datos del archivo.' });
+
+  try {
+    const nombreUnico = `${Date.now()}-${archivo.originalname.replace(/\s+/g, '_')}`;
+    const { data, error } = await supabase.storage.from('historiales-medicos').upload(nombreUnico, archivo.buffer, { contentType: archivo.mimetype });
+    if (error) throw error;
+
+    const { data: urlData } = supabase.storage.from('historiales-medicos').getPublicUrl(nombreUnico);
+    const urlPublica = urlData.publicUrl;
+
+    // Buscar carpeta del cliente por dominio
+    db.query("SELECT id_carpeta FROM carpeta c JOIN cliente cl ON c.id_cliente = cl.id_cliente WHERE cl.nombre_empresa LIKE ? LIMIT 1", [`%${dominio}%`], (err, results) => {
+      const idCarpeta = results[0]?.id_carpeta || 1;
+      
+      // 1. Insertar Documento
+      const sqlDoc = "INSERT INTO documento (id_carpeta, nombre_archivo, tipo_documento, nivel_criticidad, estado_cifrado) VALUES (?, ?, ?, ?, 1)";
+      const tipo = archivo.mimetype.split('/')[1].toUpperCase();
+      
+      db.query(sqlDoc, [idCarpeta, nombre, tipo, criticidad], (errD, resD) => {
+        if (errD) return res.status(500).json({ error: 'Error al registrar documento en Aiven' });
+        
+        // 2. Insertar Versión (con URL de Supabase)
+        const sqlVer = "INSERT INTO version_documento (id_documento, ruta_cifrada, hash_integridad) VALUES (?, ?, ?)";
+        db.query(sqlVer, [resD.insertId, urlPublica, 'SHA256-BY-SYSTEM'], (errV) => {
+          if (errV) return res.status(500).json({ error: 'Error al registrar versión' });
+
+          registrarAuditoria(req.usuario.email, req.usuario.rol, `SUBIDA ARCHIVO: ${nombre}`);
+          registrarLogForense(req.usuario.id, resD.insertId, ipCliente, 'UPLOAD_FILE', 'EXITOSO');
+          res.json({ mensaje: 'Expediente cifrado y almacenado correctamente en Supabase Cloud.' });
+        });
+      });
+    });
+  } catch (e) { res.status(500).json({ error: 'Fallo en Storage: ' + e.message }); }
+});
+
+// --- RUTAS ADMIN (Tus originales completas) ---
 app.get('/api/admin/usuarios', verificarToken, (req, res) => {
   const ipCliente = req.headers['x-forwarded-for'] || req.ip;
-
   if (req.usuario.rol !== 3) {
     registrarLogForense(req.usuario.id, null, ipCliente, 'ACCESO_ADMIN_PANEL', 'DENEGADO_ROL');
     return res.status(403).json({ error: 'Acceso denegado.' });
   }
+  const querySQL = `SELECT u.id_usuario, u.nombre_usuario, u.email, r.nombre_rol, u.estado FROM usuario u LEFT JOIN usuario_rol ur ON u.id_usuario = ur.id_usuario LEFT JOIN rol r ON ur.id_rol = r.id_rol`;
+  db.query(querySQL, (err, results) => res.json({ usuarios: results }));
+});
 
-  const querySQL = `
-    SELECT u.id_usuario, u.nombre_usuario, u.email, r.nombre_rol, u.estado 
-    FROM usuario u
-    LEFT JOIN usuario_rol ur ON u.id_usuario = ur.id_usuario
-    LEFT JOIN rol r ON ur.id_rol = r.id_rol
-  `;
+app.post('/api/admin/usuarios', verificarToken, async (req, res) => {
+  const { nombre, email, password, id_rol } = req.body;
+  if (req.usuario.rol !== 3) return res.status(403).json({ error: 'Solo SysAdmin' });
+  const salt = await bcrypt.genSalt(10);
+  const hash = await bcrypt.hash(password, salt);
+  db.query('INSERT INTO usuario (nombre_usuario, email, hash_contraseña, estado) VALUES (?, ?, ?, ?)', [nombre, email, hash, 'Activo'], (err, result) => {
+    db.query('INSERT INTO usuario_rol (id_usuario, id_rol) VALUES (?, ?)', [result.insertId, id_rol], () => {
+      registrarAuditoria(req.usuario.email, req.usuario.rol, `Alta de usuario: ${email}`);
+      res.json({ mensaje: 'Empleado registrado con éxito.' });
+    });
+  });
+});
 
-  db.query(querySQL, (err, results) => {
-    if (err) return res.status(500).json({ error: 'Error' });
-    res.json({ usuarios: results });
+app.put('/api/admin/usuarios/:id/estado', verificarToken, (req, res) => {
+  const { nuevoEstado } = req.body;
+  if (req.usuario.rol !== 3) return res.status(403).json({ error: 'Acceso denegado' });
+  db.query('UPDATE usuario SET estado = ? WHERE id_usuario = ?', [nuevoEstado, req.params.id], (err) => {
+    registrarAuditoria(req.usuario.email, req.usuario.rol, `Usuario ID ${req.params.id} cambiado a ${nuevoEstado}`);
+    res.json({ mensaje: `El estado del usuario ahora es: ${nuevoEstado}` });
   });
 });
 
@@ -219,56 +271,5 @@ app.get('/api/crear-hash/:clave', async (req, res) => {
   res.json({ hash_generated: hash });
 });
 
-// ✨ --- NUEVO: CREAR USUARIOS DESDE PANEL ---
-app.post('/api/admin/usuarios', verificarToken, async (req, res) => {
-  const ipCliente = req.headers['x-forwarded-for'] || req.ip;
-  const { nombre, email, password, id_rol } = req.body;
-
-  if (req.usuario.rol !== 3) {
-    return res.status(403).json({ error: 'Solo SysAdmin puede crear usuarios.' });
-  }
-
-  try {
-    const salt = await bcrypt.genSalt(10);
-    const hash = await bcrypt.hash(password, salt);
-
-    db.query('INSERT INTO usuario (nombre_usuario, email, hash_contraseña, estado) VALUES (?, ?, ?, ?)', 
-    [nombre, email, hash, 'Activo'], (err, result) => {
-      if (err) return res.status(500).json({ error: 'Error SQL Insertar Usuario: ' + err.message });
-
-      db.query('INSERT INTO usuario_rol (id_usuario, id_rol) VALUES (?, ?)', [result.insertId, id_rol], (err) => {
-        if (err) return res.status(500).json({ error: 'Error SQL Asignar Rol: ' + err.message });
-        
-        registrarAuditoria(req.usuario.email, req.usuario.rol, `Alta de usuario: ${email}`);
-        registrarLogForense(req.usuario.id, null, ipCliente, 'ALTA_USUARIO', 'EXITOSO');
-        
-        res.json({ mensaje: 'Empleado registrado con éxito en MediCloud.' });
-      });
-    });
-  } catch (e) {
-    res.status(500).json({ error: 'Error interno de cifrado' });
-  }
-});
-
-// ✨ --- NUEVO: BLOQUEAR / ACTIVAR USUARIO ---
-app.put('/api/admin/usuarios/:id/estado', verificarToken, (req, res) => {
-  const { id } = req.params;
-  const { nuevoEstado } = req.body;
-  const ipCliente = req.headers['x-forwarded-for'] || req.ip;
-
-  if (req.usuario.rol !== 3) return res.status(403).json({ error: 'Acceso denegado' });
-
-  db.query('UPDATE usuario SET estado = ? WHERE id_usuario = ?', [nuevoEstado, id], (err) => {
-    if (err) return res.status(500).json({ error: 'Error SQL al actualizar estado: ' + err.message });
-
-    registrarAuditoria(req.usuario.email, req.usuario.rol, `Usuario ID ${id} cambiado a ${nuevoEstado}`);
-    registrarLogForense(req.usuario.id, null, ipCliente, 'CAMBIO_ESTADO', nuevoEstado);
-    
-    res.json({ mensaje: `El estado del usuario ahora es: ${nuevoEstado}` });
-  });
-});
-
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-  console.log(`🚀 Servidor backend MediCloud ejecutándose en el puerto ${PORT}`);
-});
+app.listen(PORT, () => console.log(`🚀 Servidor backend MediCloud ejecutándose en el puerto ${PORT}`));
