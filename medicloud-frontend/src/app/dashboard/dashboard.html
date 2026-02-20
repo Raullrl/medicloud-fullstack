@@ -23,12 +23,15 @@
 
 <div class="dashboard-main">
   @if (vistaActual === 'boveda') {
-    <div class="search-container">
+    <div class="search-container" style="display: flex; gap: 15px; justify-content: center; align-items: center;">
       <input 
         type="text" 
         class="search-input"
         placeholder="Buscar expediente..." 
-        (input)="buscarCarpeta($any($event.target).value)">
+        (input)="buscarCarpeta($any($event.target).value)"
+        style="flex: 1; max-width: 600px;">
+      
+      <button class="btn-alta" (click)="mostrarModalUpload = true">+ Subir Documento</button>
     </div>
 
     @if (cargandoBoveda) {
@@ -42,27 +45,18 @@
       <div class="carpetas-grid">
         @for (carpeta of carpetas; track $index) {
           <div class="carpeta-card">
-            <div class="emoji-icon">📁</div>
+            <div class="emoji-icon">{{ carpeta.nivel_criticidad === 'CRÍTICO' ? '🚨' : '📁' }}</div>
             <h3>{{ carpeta.nombre_carpeta || 'Expediente Confidencial' }}</h3>
             <div class="card-details">
               <p><strong>Cliente:</strong> {{ carpeta.cliente || 'No especificado' }}</p>
-              <p class="ruta-texto">Directorio: {{ carpeta.ruta }}</p>
+              <p><strong>Seguridad:</strong> <span [style.color]="carpeta.nivel_criticidad === 'CRÍTICO' ? '#dc2626' : '#2563eb'">{{ carpeta.nivel_criticidad }}</span></p>
             </div>
             <button class="btn-abrir" (click)="abrirCarpeta(carpeta.ruta)">Acceder al Documento</button>
           </div>
         } @empty {
-          @if (tieneAccesoTotal) {
-            <div class="empty-state">
-              <p>El sistema no ha localizado resultados que coincidan con los criterios de búsqueda.</p>
-            </div>
-          } @else {
-            <div class="restricted-state">
-              <div class="emoji-icon-large">🔒</div>
-              <h2>Protocolo de Seguridad Activado</h2>
-              <p>El perfil asignado no dispone de los permisos necesarios para la visualización global de expedientes.</p>
-              <p>Por cumplimiento estricto del RGPD, la auditoría completa queda restringida a perfiles de Dirección y Sistemas.</p>
-            </div>
-          }
+          <div class="empty-state">
+            <p>No se han localizado documentos registrados para este perfil.</p>
+          </div>
         }
       </div>
     }
@@ -85,8 +79,8 @@
               <th>Identificador</th>
               <th>Usuario del Sistema</th>
               <th>Correo Electrónico</th>
-              <th>Nivel de Privilegios</th>
-              <th>Estado de Cuenta</th>
+              <th>Privilegios</th>
+              <th>Estado</th>
               <th>Gestión</th> </tr>
           </thead>
           <tbody>
@@ -95,28 +89,17 @@
                 <td>{{ usuario.id_usuario }}</td>
                 <td><strong>{{ usuario.nombre_usuario }}</strong></td>
                 <td class="text-muted">{{ usuario.email }}</td>
-                <td>
-                  <span class="badge" 
-                    [class.badge-sysadmin]="usuario.nombre_rol === 'SysAdmin'"
-                    [class.badge-gerencia]="usuario.nombre_rol === 'Gerencia'"
-                    [class.badge-tecnico]="usuario.nombre_rol === 'DBA' || usuario.nombre_rol === 'Soporte Técnico'">
-                    {{ usuario.nombre_rol }}
-                  </span>
-                </td>
+                <td><span class="badge">{{ usuario.nombre_rol }}</span></td>
                 <td>
                   <span class="status-dot" [class.blocked]="usuario.estado === 'Bloqueado'"></span>
-                  {{ usuario.estado || 'Activa' }}
+                  {{ usuario.estado || 'Activo' }}
                 </td>
                 <td>
-                  <button 
-                    [class]="usuario.estado === 'Bloqueado' ? 'btn-act' : 'btn-bloq'"
-                    (click)="toggleEstado(usuario)">
+                  <button [class]="usuario.estado === 'Bloqueado' ? 'btn-act' : 'btn-bloq'" (click)="toggleEstado(usuario)">
                     {{ usuario.estado === 'Bloqueado' ? 'Desbloquear' : 'Bloquear' }}
                   </button>
                 </td>
               </tr>
-            } @empty {
-              <tr><td colspan="6" class="text-center">Recuperando registros del servidor...</td></tr>
             }
           </tbody>
         </table>
@@ -125,39 +108,58 @@
   }
 </div>
 
+@if (mostrarModalUpload) {
+  <div class="modal-overlay">
+    <div class="modal-content">
+      <h3 style="margin-top: 0; margin-bottom: 20px;">Cargar Nuevo Expediente</h3>
+      
+      <div class="form-group">
+        <label>Nombre del Documento</label>
+        <input type="text" [(ngModel)]="nuevoDoc.nombre" placeholder="Ej: Contrato_Sanitas_2024">
+      </div>
+      
+      <div class="form-group">
+        <label>Nivel de Criticidad</label>
+        <select [(ngModel)]="nuevoDoc.criticidad">
+          <option value="NORMAL">NORMAL</option>
+          <option value="ALTO">ALTO</option>
+          <option value="CRÍTICO">CRÍTICO</option>
+        </select>
+      </div>
+      
+      <div class="form-group">
+        <label>Archivo Físico (PDF/Imagen)</label>
+        <input type="file" (change)="onFileSelected($event)" style="padding: 10px; background: #f8fafc; border: 1px dashed #cbd5e1; border-radius: 8px;">
+      </div>
+      
+      <div class="modal-actions">
+        <button class="btn-cancel" (click)="mostrarModalUpload = false" [disabled]="subiendo">Cancelar</button>
+        <button class="btn-save" (click)="subirArchivo()" [disabled]="subiendo">
+          {{ subiendo ? 'Cifrando y Subiendo...' : 'Guardar en Bóveda' }}
+        </button>
+      </div>
+    </div>
+  </div>
+}
+
 @if (mostrarModalAlta) {
   <div class="modal-overlay">
     <div class="modal-content">
       <h3 style="margin-top: 0; margin-bottom: 20px;">Alta de Identidad</h3>
-      
+      <div class="form-group"><label>Nombre</label><input type="text" [(ngModel)]="nuevoUsuario.nombre"></div>
+      <div class="form-group"><label>Email</label><input type="email" [(ngModel)]="nuevoUsuario.email"></div>
+      <div class="form-group"><label>Contraseña</label><input type="password" [(ngModel)]="nuevoUsuario.password"></div>
       <div class="form-group">
-        <label>Nombre Completo</label>
-        <input type="text" [(ngModel)]="nuevoUsuario.nombre" placeholder="Ej: Laura Gómez">
-      </div>
-      
-      <div class="form-group">
-        <label>Email Corporativo</label>
-        <input type="email" [(ngModel)]="nuevoUsuario.email" placeholder="usuario@medicloud.es">
-      </div>
-      
-      <div class="form-group">
-        <label>Contraseña Temporal</label>
-        <input type="password" [(ngModel)]="nuevoUsuario.password" placeholder="••••••••">
-      </div>
-      
-      <div class="form-group">
-        <label>Nivel de Privilegios</label>
+        <label>Privilegios</label>
         <select [(ngModel)]="nuevoUsuario.id_rol">
           <option [value]="3">SysAdmin</option>
           <option [value]="1">Gerencia</option>
-          <option [value]="2">Soporte Técnico</option>
-          <option [value]="4">Técnico Administrativo</option>
+          <option [value]="4">Administrativo</option>
         </select>
       </div>
-      
       <div class="modal-actions">
         <button class="btn-cancel" (click)="mostrarModalAlta = false">Cancelar</button>
-        <button class="btn-save" (click)="crearUsuario()">Guardar Empleado</button>
+        <button class="btn-save" (click)="crearUsuario()">Guardar</button>
       </div>
     </div>
   </div>

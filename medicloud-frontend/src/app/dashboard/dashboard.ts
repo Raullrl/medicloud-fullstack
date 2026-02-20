@@ -15,7 +15,6 @@ export class DashboardComponent implements OnInit {
   
   mensajeServidor = '¡Bóveda Segura de MediCloud conectada!';
   carpetas: any[] = [];
-  
   cargandoBoveda: boolean = true; 
 
   esAdmin: boolean = false;
@@ -24,9 +23,15 @@ export class DashboardComponent implements OnInit {
   vistaActual: 'boveda' | 'admin' = 'boveda'; 
   listaUsuarios: any[] = []; 
 
-  // ✨ NUEVAS VARIABLES PARA EL MODAL DE ALTA
+  // Variables para Modal de Alta Empleado
   mostrarModalAlta: boolean = false;
   nuevoUsuario = { nombre: '', email: '', password: '', id_rol: 4 };
+
+  // ✨ NUEVAS VARIABLES PARA SUBIDA DE DOCUMENTOS
+  mostrarModalUpload: boolean = false;
+  subiendo: boolean = false;
+  archivoSeleccionado: File | null = null;
+  nuevoDoc = { nombre: '', criticidad: 'NORMAL' };
 
   constructor(private http: HttpClient, private cdr: ChangeDetectorRef) {}
 
@@ -104,17 +109,50 @@ export class DashboardComponent implements OnInit {
 
     this.http.get('https://medicloud-backend-tuug.onrender.com/api/carpetas', { headers }).subscribe({
       next: (respuesta: any) => {
-        if (respuesta && respuesta.carpetas) {
-          this.carpetas = respuesta.carpetas;
-        } else if (Array.isArray(respuesta)) {
-          this.carpetas = respuesta;
-        }
+        this.carpetas = respuesta.carpetas || respuesta;
         this.cargandoBoveda = false; 
         this.cdr.detectChanges(); 
       },
       error: (err) => {
         console.error("❌ Error al obtener carpetas:", err);
         this.cargandoBoveda = false; 
+        this.cdr.detectChanges();
+      }
+    });
+  }
+
+  // ✨ NUEVAS FUNCIONES DE SUBIDA
+  onFileSelected(event: any) {
+    this.archivoSeleccionado = event.target.files[0];
+  }
+
+  subirArchivo() {
+    if (!this.archivoSeleccionado || !this.nuevoDoc.nombre) {
+      alert("Por favor, introduce un nombre y selecciona un archivo.");
+      return;
+    }
+
+    this.subiendo = true;
+    const token = localStorage.getItem('token_medicloud');
+    const headers = new HttpHeaders().set('Authorization', `Bearer ${token}`);
+
+    const formData = new FormData();
+    formData.append('archivo', this.archivoSeleccionado);
+    formData.append('nombre', this.nuevoDoc.nombre);
+    formData.append('criticidad', this.nuevoDoc.criticidad);
+
+    this.http.post('https://medicloud-backend-tuug.onrender.com/api/carpetas/upload', formData, { headers }).subscribe({
+      next: (res: any) => {
+        alert("✅ " + res.mensaje);
+        this.mostrarModalUpload = false;
+        this.subiendo = false;
+        this.archivoSeleccionado = null;
+        this.nuevoDoc = { nombre: '', criticidad: 'NORMAL' };
+        this.obtenerCarpetas(); // Refrescar lista
+      },
+      error: (err) => {
+        alert("❌ Error: " + (err.error?.error || "Fallo al conectar con el servidor"));
+        this.subiendo = false;
         this.cdr.detectChanges();
       }
     });
@@ -133,9 +171,7 @@ export class DashboardComponent implements OnInit {
     }
   }
 
-  // ✨ NUEVA FUNCIÓN: CAMBIAR ESTADO (BLOQUEAR/ACTIVAR)
   toggleEstado(usuario: any) {
-    // ✨ CORREGIDO: Cambiado 'Activa' por 'Activo'
     const nuevoEstado = usuario.estado === 'Bloqueado' ? 'Activo' : 'Bloqueado';
     const token = localStorage.getItem('token_medicloud');
     const headers = new HttpHeaders().set('Authorization', `Bearer ${token}`);
@@ -152,7 +188,6 @@ export class DashboardComponent implements OnInit {
     });
   }
 
-  // ✨ NUEVA FUNCIÓN: ALTA DE USUARIO
   crearUsuario() {
     if (!this.nuevoUsuario.nombre || !this.nuevoUsuario.email || !this.nuevoUsuario.password) {
       alert("Por favor, rellena todos los campos.");
@@ -165,9 +200,9 @@ export class DashboardComponent implements OnInit {
     this.http.post('https://medicloud-backend-tuug.onrender.com/api/admin/usuarios', this.nuevoUsuario, { headers }).subscribe({
       next: (res: any) => {
         alert(res.mensaje);
-        this.mostrarModalAlta = false; // Cierra la ventana
-        this.obtenerUsuariosAdmin();   // Recarga la tabla
-        this.nuevoUsuario = { nombre: '', email: '', password: '', id_rol: 4 }; // Limpia el formulario
+        this.mostrarModalAlta = false;
+        this.obtenerUsuariosAdmin(); 
+        this.nuevoUsuario = { nombre: '', email: '', password: '', id_rol: 4 };
       },
       error: (err) => {
         alert("❌ Error de Base de Datos:\n" + (err.error?.error || err.message));
