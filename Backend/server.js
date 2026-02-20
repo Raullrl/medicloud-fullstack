@@ -123,7 +123,6 @@ const verificarToken = (req, res, next) => {
   });
 };
 
-// ✨ --- RUTA MEJORADA: OBTENER CARPETAS (Directorios) --- ✨
 app.get('/api/mis-carpetas', verificarToken, (req, res) => {
   const email = req.usuario.email || '';
   const dominio = email.split('@')[1]?.split('.')[0] || '';
@@ -142,7 +141,31 @@ app.get('/api/mis-carpetas', verificarToken, (req, res) => {
   });
 });
 
-// --- RUTA: CARPETAS (Documentos) ---
+// ✨ --- NUEVA RUTA: CREAR CARPETA --- ✨
+app.post('/api/carpetas', verificarToken, (req, res) => {
+  const { nombre } = req.body;
+  const email = req.usuario.email || '';
+  const dominio = email.split('@')[1]?.split('.')[0] || '';
+
+  if (!nombre) return res.status(400).json({ error: 'El nombre de la carpeta es obligatorio.' });
+
+  // Buscamos el ID del cliente al que pertenece el usuario por su dominio
+  db.query("SELECT id_cliente FROM cliente WHERE nombre_empresa LIKE ? LIMIT 1", [`%${dominio}%`], (err, results) => {
+    if (err || results.length === 0) return res.status(400).json({ error: 'No se pudo identificar a qué empresa perteneces.' });
+    
+    const idCliente = results[0].id_cliente;
+    const rutaLogica = `${dominio}/${nombre.toLowerCase().replace(/\s+/g, '_')}`;
+
+    // Insertamos la nueva carpeta
+    db.query("INSERT INTO carpeta (id_cliente, nombre, ruta) VALUES (?, ?, ?)", [idCliente, nombre, rutaLogica], (errIns) => {
+      if (errIns) return res.status(500).json({ error: 'Error en BD al crear la carpeta.' });
+      
+      registrarAuditoria(req.usuario.email, req.usuario.rol, `NUEVA CARPETA CREADA: ${nombre}`);
+      res.json({ mensaje: `Directorio "${nombre}" creado con éxito.` });
+    });
+  });
+});
+
 app.get('/api/carpetas', verificarToken, (req, res) => {
   const email = req.usuario.email || '';
   const dominio = email.split('@')[1]?.split('.')[0] || '';
@@ -173,7 +196,6 @@ app.get('/api/carpetas', verificarToken, (req, res) => {
   }
 });
 
-// --- RUTA: BÚSQUEDA SEGURA ---
 app.get('/api/carpetas/buscar', verificarToken, (req, res) => {
   const termino = req.query.nombre || '';
   const dominio = req.usuario.email.split('@')[1]?.split('.')[0] || '';
