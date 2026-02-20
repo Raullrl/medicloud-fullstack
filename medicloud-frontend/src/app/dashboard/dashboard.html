@@ -1,98 +1,117 @@
 <div class="dashboard-header">
-  <h1>🏦 Bóveda Segura de MediCloud</h1>
-  <p class="success-msg">Hola, {{ nombreUsuario | titlecase }} | {{ mensajeServidor }}</p>
-  
-  <div style="display: flex; gap: 10px; margin-top: 10px;">
-    @if (esAdmin) {
-      @if (vistaActual === 'boveda') {
-        <button style="background-color: #d9534f; color: white; padding: 10px; border: none; border-radius: 5px; cursor: pointer;" (click)="cambiarVista('admin')">⚙️ Panel de Administración</button>
-      } @else {
-        <button style="background-color: #5bc0de; color: white; padding: 10px; border: none; border-radius: 5px; cursor: pointer;" (click)="cambiarVista('boveda')">📁 Volver a Bóveda</button>
+  <div class="header-content">
+    <div class="brand">
+      <img src="assets/logo-medicloud.jpg" alt="Logo MediCloud" class="header-logo">
+      <div class="header-text-container">
+        <h1>Bóveda Segura Central</h1>
+        <p class="success-msg">Verificado: {{ nombreUsuario | titlecase }} | {{ mensajeServidor }}</p>
+      </div>
+    </div>
+
+    <div class="header-actions">
+      @if (esAdmin) {
+        @if (vistaActual === 'boveda') {
+          <button class="btn-admin" (click)="cambiarVista('admin')">Panel de Administración</button>
+        } @else {
+          <button class="btn-boveda" (click)="cambiarVista('boveda')">Volver a Bóveda</button>
+        }
       }
-    }
-    <button class="btn-logout" (click)="cerrarSesion()">🚪 Cerrar Sesión</button>
+      <button class="btn-logout" (click)="cerrarSesion()">Cerrar Sesión</button>
+    </div>
   </div>
 </div>
 
-@if (vistaActual === 'boveda') {
-  
-  <div style="margin-bottom: 25px; display: flex; justify-content: center; margin-top: 20px;">
-    <input 
-      type="text" 
-      placeholder="🔎 Buscar expediente por nombre (Protección SQLi activada)..." 
-      style="width: 100%; max-width: 600px; padding: 12px 20px; border-radius: 8px; border: 1px solid #bce8f1; font-size: 1rem; box-shadow: 0 2px 5px rgba(0,0,0,0.05);"
-      (input)="buscarCarpeta($any($event.target).value)">
-  </div>
-
-  @if (cargandoBoveda) {
-    <div style="text-align: center; padding: 50px;">
-      <p style="color: #666; font-size: 1.2rem; font-weight: bold;">⏳ Sincronizando con la Bóveda Segura...</p>
-      <p style="color: #999;">Verificando credenciales de acceso biográfico...</p>
+<div class="dashboard-main">
+  @if (vistaActual === 'boveda') {
+    <div class="search-container">
+      <input 
+        type="text" 
+        class="search-input"
+        placeholder="Buscar expediente de paciente (Protección SQLi activa)..." 
+        (input)="buscarCarpeta($any($event.target).value)">
     </div>
-  } 
-  @else {
-    <div class="carpetas-grid">
-      @for (carpeta of carpetas; track $index) {
-        <div class="carpeta-card">
-          <h3>📁 {{ carpeta.nombre_carpeta || 'Carpeta de Paciente' }}</h3>
-          <p><strong>Cliente:</strong> {{ carpeta.cliente || 'No especificado' }}</p>
-          <p class="ruta-texto">Ruta: {{ carpeta.ruta }}</p>
-          <button class="btn-abrir" (click)="abrirCarpeta(carpeta.ruta)"> Abrir Carpeta</button>
-        </div>
-      } @empty {
-        @if (tieneAccesoTotal) {
-          <div style="grid-column: 1 / -1; text-align: center; padding: 40px;">
-            <p style="color: #666; font-size: 1.1rem;">No se han encontrado expedientes con ese nombre en la base de datos.</p>
+
+    @if (cargandoBoveda) {
+      <div class="loading-state">
+        <div class="spinner"></div>
+        <p class="loading-title">Estableciendo conexión segura...</p>
+        <p class="loading-subtitle">Recuperando expedientes cifrados desde el servidor principal</p>
+      </div>
+    } 
+    @else {
+      <div class="carpetas-grid">
+        @for (carpeta of carpetas; track $index) {
+          <div class="carpeta-card">
+            <div class="emoji-icon">📁</div>
+            <h3>{{ carpeta.nombre_carpeta || 'Expediente Confidencial' }}</h3>
+            <div class="card-details">
+              <p><strong>Cliente:</strong> {{ carpeta.cliente || 'No especificado' }}</p>
+              <p class="ruta-texto">Directorio: {{ carpeta.ruta }}</p>
+            </div>
+            <button class="btn-abrir" (click)="abrirCarpeta(carpeta.ruta)">Acceder al Documento</button>
           </div>
-        } @else {
-          <div style="grid-column: 1 / -1; text-align: center; padding: 50px; background-color: #f9f9f9; border: 2px dashed #ccc; border-radius: 15px;">
-            <h2 style="color: #d9534f; margin-bottom: 15px;">🔒 Acceso Restringido por Política de Seguridad</h2>
-            <p style="color: #666; font-size: 1.1rem; line-height: 1.6; max-width: 700px; margin: 0 auto;">
-              Tu perfil de usuario en la matriz <strong>MediCloud</strong> no cuenta con privilegios de auditoría para visualizar expedientes médicos de clientes externos.
-              <br><br>
-              En cumplimiento con el <strong>RGPD</strong> y el <strong>Principio de Mínimo Privilegio</strong>, este acceso está reservado exclusivamente a los roles directivos y técnicos.
-            </p>
-          </div>
+        } @empty {
+          @if (tieneAccesoTotal) {
+            <div class="empty-state">
+              <p>El sistema no ha localizado resultados que coincidan con los criterios de búsqueda.</p>
+            </div>
+          } @else {
+            <div class="restricted-state">
+              <div class="emoji-icon-large">🔒</div>
+              <h2>Protocolo de Seguridad Activado</h2>
+              <p>
+                El perfil asignado no dispone de los permisos necesarios para la visualización global de expedientes según las políticas de la matriz MediCloud.
+              </p>
+              <p>
+                Por cumplimiento estricto del RGPD y el modelo de Mínimo Privilegio, la auditoría completa queda restringida a perfiles de Dirección y Administración de Sistemas.
+              </p>
+            </div>
+          }
         }
-      }
+      </div>
+    }
+  } 
+
+  @else {
+    <div class="admin-panel">
+      <div class="admin-header">
+        <h2>Control de Accesos y Auditoría</h2>
+        <p>Monitorización en tiempo real de identidades autorizadas en la infraestructura.</p>
+      </div>
+
+      <div class="table-container">
+        <table class="modern-table">
+          <thead>
+            <tr>
+              <th>Identificador</th>
+              <th>Usuario del Sistema</th>
+              <th>Correo Electrónico</th>
+              <th>Nivel de Privilegios</th>
+              <th>Estado de Cuenta</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (usuario of listaUsuarios; track usuario.id_usuario) {
+              <tr>
+                <td>{{ usuario.id_usuario }}</td>
+                <td><strong>{{ usuario.nombre_usuario }}</strong></td>
+                <td class="text-muted">{{ usuario.email }}</td>
+                <td>
+                  <span class="badge" [class.badge-admin]="usuario.nombre_rol === 'SysAdmin' || usuario.nombre_rol === 'Gerencia'">
+                    {{ usuario.nombre_rol }}
+                  </span>
+                </td>
+                <td>
+                  <span class="status-dot" [class.blocked]="usuario.estado === 'Bloqueado'"></span>
+                  {{ usuario.estado || 'Activa' }}
+                </td>
+              </tr>
+            } @empty {
+              <tr><td colspan="5" class="text-center">Recuperando registros del servidor...</td></tr>
+            }
+          </tbody>
+        </table>
+      </div>
     </div>
   }
-} 
-
-@else {
-  <div class="admin-panel" style="background: white; padding: 20px; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); margin-top: 20px;">
-    <h2>👥 Gestión de Empleados (Control de Accesos)</h2>
-    <p>Solo los usuarios con Rol de Administrador pueden ver esta pantalla.</p>
-
-    <table style="width: 100%; border-collapse: collapse; margin-top: 15px;">
-      <thead>
-        <tr style="background-color: #f4f4f4; text-align: left;">
-          <th style="padding: 10px; border-bottom: 2px solid #ddd;">ID</th>
-          <th style="padding: 10px; border-bottom: 2px solid #ddd;">Usuario</th>
-          <th style="padding: 10px; border-bottom: 2px solid #ddd;">Email Corporativo</th>
-          <th style="padding: 10px; border-bottom: 2px solid #ddd;">Rol</th>
-          <th style="padding: 10px; border-bottom: 2px solid #ddd;">Estado</th>
-        </tr>
-      </thead>
-      <tbody>
-        @for (usuario of listaUsuarios; track usuario.id_usuario) {
-          <tr>
-            <td style="padding: 10px; border-bottom: 1px solid #eee;">{{ usuario.id_usuario }}</td>
-            <td style="padding: 10px; border-bottom: 1px solid #eee;"><strong>{{ usuario.nombre_usuario }}</strong></td>
-            <td style="padding: 10px; border-bottom: 1px solid #eee; color: #666;">{{ usuario.email }}</td>
-            <td style="padding: 10px; border-bottom: 1px solid #eee;">
-              <span [style.color]="usuario.nombre_rol === 'SysAdmin' || usuario.nombre_rol === 'Gerencia' ? 'red' : 'black'">
-                {{ usuario.nombre_rol }}
-              </span>
-            </td>
-            <td style="padding: 10px; border-bottom: 1px solid #eee;">
-              <span [style.color]="usuario.estado === 'Bloqueado' ? 'red' : 'green'">{{ usuario.estado || 'Activo' }}</span>
-            </td>
-          </tr>
-        } @empty {
-          <tr><td colspan="5" style="text-align: center; padding: 20px;">Cargando empleados...</td></tr>
-        }
-      </tbody>
-    </table>
-  </div>
-}
+</div>

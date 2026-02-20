@@ -1,24 +1,23 @@
 @if (!sesionIniciada) {
   <div class="login-container">
     <div class="login-box">
-      <h1>🏥 MediCloud</h1>
-      <h2>Portal del Empleado</h2>
-
+      <img src="assets/logo-medicloud.jpg" alt="Logo MediCloud" class="login-logo">
+      
       <div class="input-group">
         <label>Email Corporativo</label>
         <input 
           type="email" 
-          placeholder="ejemplo@clinicadental.es" 
+          placeholder="ejemplo@medicloud.es" 
           [(ngModel)]="usuario">
       </div>
 
       <div class="input-group">
-        <label>Contraseña</label>
-        <input type="password" placeholder="••••••" [(ngModel)]="password">
+        <label>Contraseña Segura</label>
+        <input type="password" placeholder="••••••••" [(ngModel)]="password">
       </div>
 
-      <button (click)="iniciarSesion()" [disabled]="cargando" [style.opacity]="cargando ? '0.7' : '1'">
-        {{ cargando ? '⏳ Conectando de forma segura...' : 'Entrar a la Bóveda' }}
+      <button (click)="iniciarSesion()" [disabled]="cargando" [class.loading]="cargando">
+        {{ cargando ? 'Autenticando...' : 'Acceso Autorizado' }}
       </button>
 
     </div>
