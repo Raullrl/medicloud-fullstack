@@ -1,9 +1,9 @@
 <div class="dashboard-header">
   <div class="header-content">
     <div class="brand">
-      <img src="assets/logo-medicloud.jpg" alt="Logo MediCloud" class="header-logo">
+      <img src="/medicloud-frontend/src/assets/logo-medicloud.jpg" alt="Logo MediCloud" class="header-logo">
       <div class="header-text-container">
-        <h1>Bóveda Segura Central</h1>
+        <h1>Repositorio Documental Corporativo</h1>
         <p class="success-msg">Verificado: {{ nombreUsuario | titlecase }} | {{ mensajeServidor }}</p>
       </div>
     </div>
@@ -13,7 +13,7 @@
         @if (vistaActual === 'boveda') {
           <button class="btn-admin" (click)="cambiarVista('admin')">Panel de Administración</button>
         } @else {
-          <button class="btn-boveda" (click)="cambiarVista('boveda')">Volver a Bóveda</button>
+          <button class="btn-boveda" (click)="cambiarVista('boveda')">Volver al Repositorio</button>
         }
       }
       <button class="btn-logout" (click)="cerrarSesion()">Cerrar Sesión</button>
@@ -27,7 +27,7 @@
       <input 
         type="text" 
         class="search-input"
-        placeholder="Buscar expediente de paciente (Protección SQLi activa)..." 
+        placeholder="Buscar expediente..." 
         (input)="buscarCarpeta($any($event.target).value)">
     </div>
 
@@ -97,7 +97,10 @@
                 <td><strong>{{ usuario.nombre_usuario }}</strong></td>
                 <td class="text-muted">{{ usuario.email }}</td>
                 <td>
-                  <span class="badge" [class.badge-admin]="usuario.nombre_rol === 'SysAdmin' || usuario.nombre_rol === 'Gerencia'">
+                  <span class="badge" 
+                    [class.badge-sysadmin]="usuario.nombre_rol === 'SysAdmin'"
+                    [class.badge-gerencia]="usuario.nombre_rol === 'Gerencia'"
+                    [class.badge-tecnico]="usuario.nombre_rol === 'DBA' || usuario.nombre_rol === 'Soporte Técnico'">
                     {{ usuario.nombre_rol }}
                   </span>
                 </td>

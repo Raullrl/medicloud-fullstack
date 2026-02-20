@@ -1,3 +1,6 @@
+/* ... (Todo el CSS anterior se mantiene igual hasta llegar a la parte de los badges al final) ... */
+
+/* ... (mantén todo el CSS de la cabecera, botones, grid, etc. que ya tenías) ... */
 .dashboard-header {
     background-color: #000000; /* Negro para fusionar el logo */
     border-bottom: 2px solid #1e293b;
@@ -200,7 +203,39 @@
 .modern-table tr:hover td { background-color: #f8fafc; }
 .text-muted { color: #64748b; }
 .text-center { text-align: center; }
-.badge { background: #f1f5f9; color: #475569; padding: 4px 10px; border-radius: 9999px; font-size: 12px; font-weight: 600; }
-.badge-admin { background: #eff6ff; color: #1d4ed8; }
+
+/* ESTILOS DE LOS BADGES (ROLES) MODIFICADOS */
+.badge {
+    background: #f1f5f9; /* Color gris por defecto para roles normales */
+    color: #475569;
+    padding: 4px 12px;
+    border-radius: 9999px;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+}
+
+/* Rojo intenso para SysAdmin */
+.badge-sysadmin {
+    background: #fef2f2;
+    color: #dc2626;
+    border: 1px solid #fecaca;
+}
+
+/* Azul/Púrpura corporativo para Gerencia */
+.badge-gerencia {
+    background: #eff6ff;
+    color: #2563eb;
+    border: 1px solid #bfdbfe;
+}
+
+/* Naranja para roles técnicos (DBA, Soporte) */
+.badge-tecnico {
+    background: #fff7ed;
+    color: #ea580c;
+    border: 1px solid #ffedd5;
+}
+
 .status-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background-color: #22c55e; margin-right: 8px; }
 .status-dot.blocked { background-color: #ef4444; }
+
